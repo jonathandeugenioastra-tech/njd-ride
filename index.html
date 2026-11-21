@@ -333,8 +333,15 @@ const MODELS=[
  {id:'indian',n:'Indian Bobber custom',y:'—',tri:'77k',a:'windupbird',u:'https://sketchfab.com/3d-models/bobber-indian-bebc000d6b7a4492a6cce581d0eabf8e',body:[],brand:'indian'},
  
 {id:'elohv',n:'Harley-Davidson EL Knucklehead OHV V-twin',y:'storica',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=harley-davidson-motorcycle-el-ohv-v-twin',body:[],brand:'harley'},
-
- 
+ {id:'sp883_18',sep:1,flip:1,n:'Harley-Davidson Sportster Iron 883',y:'2018',tri:'26k',a:'EmanuelRestrepoVelez',u:'https://sketchfab.com/3d-models/94c9d48a23a1407190e973001da63e50',brand:'hd'},
+ {id:'sp883_15',sep:1,n:'Harley-Davidson Sportster Iron 883',y:'2015',tri:'1,3M',a:'niev',u:'https://sketchfab.com/3d-models/612071b783f14a7288df2d361be9a244',brand:'hd'},
+ {id:'sp_am',sep:1,n:'Harley-Davidson Sportster',y:'—',tri:'158k',a:'_AM_',u:'https://sketchfab.com/3d-models/acfc1848f72a436d82c16595a258ab9c',brand:'hd'},
+ {id:'evochop',sep:1,n:'Harley-Davidson Sportster Evolution chopper',y:'custom',tri:'142k',a:'merose',u:'https://sketchfab.com/3d-models/0216d0aba8934a7e8563cb3f12cb0d9b',brand:'hd'},
+ {id:'dyna2',sep:1,n:'Harley-Davidson Dyna',y:'—',tri:'212k',a:'shahbazawan5',u:'https://sketchfab.com/3d-models/4ff5c6b7d4f6479abbce5b1f4775f63e',brand:'hd'},
+ {id:'knuckle',sep:1,n:'Harley-Davidson Knucklehead custom',y:'storica',tri:'156k',a:'habibahmmad17',u:'https://sketchfab.com/3d-models/c79b3f138ac7417491e5b7982769abcd',brand:'hd'},
+ {id:'wlbobber',sep:1,n:'Harley-Davidson bobber militare',y:'storica',tri:'617k',a:'valerij1987',u:'https://sketchfab.com/3d-models/681f54f1e5f440c592b194a4d3caab28',brand:'hd'},
+ {id:'chopperlok',sep:1,n:'Harley-Davidson chopper',y:'custom',tri:'1,15M',a:'ericvento62',u:'https://sketchfab.com/3d-models/6d8910cb05be4995959aa5c880e51e05',brand:'hd'},
+ {id:'hd1910',sep:1,n:'Harley-Davidson d\'epoca (primi \'900)',y:'storica',tri:'198k',a:'mertzal',u:'https://sketchfab.com/3d-models/51769145b2d94059924248df7f995b77',brand:'hd'},
 ];
 const SPECS={
  breakout:{t:'Breakout (gamma 2025, dati ufficiali)',r:[['Motore','Milwaukee-Eight 117 Custom'],['Potenza / coppia','104 HP @ 4800 giri · 126 ft-lb'],['Inclinazione cannotto','34°'],['Avancorsa','145 mm'],['Interasse','1.695 mm'],['Pneumatici','130/60B21 – 240/40R18'],['Altezza sella','665 mm a vuoto'],['Peso','309 kg in ordine di marcia']],s:'harley-davidson.com, pagina modello Breakout 2025'},
@@ -411,7 +418,16 @@ function finishParams(f){return {gloss:{metalness:0,roughness:.28,clearcoat:1,cl
   chrome:{metalness:1,roughness:.04},blackchrome:{metalness:1,roughness:.08},brushed:{metalness:1,roughness:.3},polished:{metalness:1,roughness:.12},titanium:{metalness:1,roughness:.2,iridescence:1,iridescenceIOR:2.1,iridescenceThicknessRange:[260,900]},
   ceramic:{metalness:.15,roughness:.6,clearcoat:.15},wrinkle:{metalness:.05,roughness:.9,normalMap:GRAIN,normalScale:new THREE.Vector2(.9,.9)},leather:{metalness:0,roughness:.5,clearcoat:.2,clearcoatRoughness:.5,sheen:.3,normalMap:GRAIN,normalScale:new THREE.Vector2(.4,.4)}}[f]||{};}
 
-function register(root){parts=new Map();root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.receiveShadow=true;
+/* modelli con molti pezzi che condividono lo stesso materiale: ogni pezzo diventa selezionabile e verniciabile a sé */
+function splitMats(root){const ms=[],use=new Map();root.traverse(o=>{if(o.isMesh&&!Array.isArray(o.material)){ms.push(o);use.set(o.material,(use.get(o.material)||0)+1);}});
+  if(ms.length<15)return;const used={};ms.forEach(o=>{if(use.get(o.material)<3)return;let nm=(o.name||o.parent&&o.parent.name||'pezzo').replace(/[_.]+/g,' ').replace(/\s+\d+$/,'').trim()||'pezzo';used[nm]=(used[nm]||0)+1;if(used[nm]>1)nm+=' '+used[nm];const c=o.material.clone();c.name=nm;o.material=c;});
+  /* modelli senza materiali reali (bianco "argilla"): finiture plausibili dal nome del pezzo, altrimenti metallo satinato */
+  const K=[[/chrom|cromo|inox|steel|exhaust|pipe|muffler|scarico/i,{color:0xe8eaed,metalness:1,roughness:.08}],[/gum|tire|tyre|rubber|gomm|pneu/i,{color:0x161616,metalness:0,roughness:.85}],[/glass|vetro|lens/i,{color:0xdde6ee,metalness:0,roughness:.05,transparent:true,opacity:.45}],[/leather|seat|sella|pelle/i,{color:0x3a2416,metalness:0,roughness:.6}],[/black|nero|frame|telaio/i,{color:0x1b1c1e,metalness:.3,roughness:.45}],[/body|paint|tank|serbat|fender|paraf/i,{color:0x15171b,metalness:.6,roughness:.18}]];
+  root.updateMatrixWorld(true);const RB=new THREE.Box3().setFromObject(root),RH=RB.max.y-RB.min.y,bb=new THREE.Box3(),bs=new THREE.Vector3();
+  ms.forEach(o=>{const m=o.material;if(Array.isArray(m)||m.map||!m.color)return;const c=m.color,l=(c.r+c.g+c.b)/3;if(l<.3)return;let r=K.find(k=>k[0].test(m.name));
+   if(!r){bb.setFromObject(o);bb.getSize(bs);const q=bs.x/bs.y;if(bb.min.y-RB.min.y<.03*RH&&bs.y>.3*RH&&q>.8&&q<1.25&&bs.z<.35*bs.y)r=K[1];}Object.assign(m,r?{metalness:r[1].metalness,roughness:r[1].roughness,transparent:!!r[1].transparent,opacity:r[1].opacity??1}:{metalness:.85,roughness:.3});m.color.set(r?r[1].color:0xc4c8ce);m.needsUpdate=true;});}
+function register(root){parts=new Map();
+  root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.receiveShadow=true;
   for(const mm of (Array.isArray(o.material)?o.material:[o.material]))for(const k of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap'])if(mm[k]){mm[k].anisotropy=MAXANI;mm[k].needsUpdate=true;}const mats=Array.isArray(o.material)?o.material:[o.material];
   mats.forEach((m,i)=>{if(/miror|mirror/i.test(m.name||'')){const mm=new THREE.MeshPhysicalMaterial({name:m.name,color:0xe9ecef,metalness:1,roughness:.015});if(Array.isArray(o.material))o.material[i]=mm;else o.material=mm;m=mm;}const name=m.name||('materiale '+parts.size);if(!parts.has(name))parts.set(name,{name,orig:m,cur:m,meshes:[],cat:catOf(name),color:'#'+(m.color?m.color.getHexString():'888888'),finish:'orig'});parts.get(name).meshes.push([o,i]);});});}
 function setPartMat(p,m){p.cur=m;for(const [o,i] of p.meshes){if(Array.isArray(o.material))o.material[i]=m;else o.material=m;}}
@@ -459,7 +475,7 @@ async function loadModel(m,url){
   // orienta la moto lungo l'asse X
   if(m&&m.flip)model.rotation.y+=Math.PI;
   if(f.along==='z'||(m&&m.flip)){if(f.along==='z')model.rotation.y+=Math.PI/2;const b=new THREE.Box3().setFromObject(model);const c=b.getCenter(new THREE.Vector3());model.position.x-=c.x;model.position.z-=c.z;}
-  OF&&OF.reset();smoothModel(model);scene.add(model);try{STK.presplitScan(model);}catch(e){console.warn('zone',e);}register(model);invalidate();cur=m;hidden.clear();selected=null;
+  OF&&OF.reset();smoothModel(model);if(m&&m.sep)splitMats(model);scene.add(model);try{STK.presplitScan(model);}catch(e){console.warn('zone',e);}register(model);invalidate();cur=m;hidden.clear();selected=null;
   controls.target.set(0,f.h*.45,0);camera.position.set(...HERO);controls.update();
   TM.prep=Math.round(performance.now()-T0);buildParts();renderInfo();renderSheet();
   // materiali preparati prima di mostrare la moto: niente scatti al primo movimento
