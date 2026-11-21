@@ -286,8 +286,8 @@ a{color:var(--acc2)}
 <div id="splash"><div class="in">
   <div class="row" style="gap:12px;margin:0"><img class="emb" src="icon-128.png" alt="" style="width:60px;height:60px"><div class="k">OFFICINA DIGITALE · MOTO CUSTOM</div></div>
   <h1>NJ.D' <b>RIDE</b></h1>
-  <p class="l">Progetta la tua custom su modelli 3D reali di Harley-Davidson, Indian, Moto Guzzi e Ducati: ogni pezzo si sposta, si ridimensiona, si toglie e si vernicia, con i dati d'officina ufficiali sempre a portata di mano.</p>
-  <div class="g"><div><b>8 moto reali</b><span>Dyna, Softail, Touring, Indian, Guzzi, Panigale</span></div><div><b>Officina 3D</b><span>sposta, ruota, scala, elimina e ripristina ogni pezzo</span></div><div><b>Libreria custom</b><span>cerchi, gomme, forcelle, scarichi, selle, serbatoi, cupolini, borse</span></div><div><b>Dati ufficiali</b><span>coppie di serraggio, fluidi, pneumatici e manuali</span></div></div>
+  <p class="l">Progetta la tua custom su modelli 3D reali di Harley-Davidson, Buell e Indian: ogni pezzo si sposta, si ridimensiona, si toglie e si vernicia, con i dati d'officina ufficiali sempre a portata di mano.</p>
+  <div class="g"><div><b>Moto reali</b><span>Dyna, Softail, Touring, Sportster, Buell, Indian</span></div><div><b>Officina 3D</b><span>sposta, ruota, scala, elimina e ripristina ogni pezzo</span></div><div><b>Libreria custom</b><span>cerchi, gomme, forcelle, scarichi, selle, serbatoi, cupolini, borse</span></div><div><b>Dati ufficiali</b><span>coppie di serraggio, fluidi, pneumatici e manuali</span></div></div>
   <button class="btn pri" id="splashGo" style="font-size:15px;padding:11px 22px">Entra in garage</button>
   <div class="cp">© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Marchi e design delle moto appartengono ai rispettivi titolari.</div>
 </div></div>
@@ -331,10 +331,10 @@ const MODELS=[
  {id:'roadking',flip:1,n:'Harley-Davidson Road King Special',y:'2018',tri:'164k',a:'everhard',u:'https://sketchfab.com/3d-models/harley-davidson-flhrxs-road-king-special-881433de7df245b3bc435360bb5006a9',body:['roadking_mc__env_1','roadking_grey__env_1'],brand:'hd'},
  {id:'electra',flip:1,n:'Harley-Davidson Electra Glide (FLHTP)',y:'—',tri:'313k',a:'everhard',u:'https://sketchfab.com/3d-models/harley-davidson-flhtp-electra-glide-police-la-417dadb8e40a48fd9386ec22a412d964',body:['hpolice__env_3','hpolice3__env_3','hpolice4__env_3','hpolice5__env_3'],brand:'hd'},
  {id:'indian',n:'Indian Bobber custom',y:'—',tri:'77k',a:'windupbird',u:'https://sketchfab.com/3d-models/bobber-indian-bebc000d6b7a4492a6cce581d0eabf8e',body:[],brand:'indian'},
- {id:'guzzivtwin',n:'Moto Guzzi V-twin custom',y:'custom',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=moto-guzzi-v-twin',body:[],brand:'guzzi'},
+ 
 {id:'elohv',n:'Harley-Davidson EL Knucklehead OHV V-twin',y:'storica',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=harley-davidson-motorcycle-el-ohv-v-twin',body:[],brand:'harley'},
-{id:'guzzi',n:'Moto Guzzi 850 Le Mans',y:'storica',tri:'900k',a:'TG13730',u:'https://sketchfab.com/3d-models/barak-afritt-guzzi-850-le-mans-eb87d6cf412445f58f781a36a5cdace8',body:[],brand:'guzzi'},
- {id:'panigale',n:'Ducati Panigale V4 SP',y:'2021',tri:'221k',a:'Carlito (brainlesszombie5)',u:'https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f',body:['mat_livery_0_160_001'],brand:'ducati'}
+
+ 
 ];
 const SPECS={
  breakout:{t:'Breakout (gamma 2025, dati ufficiali)',r:[['Motore','Milwaukee-Eight 117 Custom'],['Potenza / coppia','104 HP @ 4800 giri · 126 ft-lb'],['Inclinazione cannotto','34°'],['Avancorsa','145 mm'],['Interasse','1.695 mm'],['Pneumatici','130/60B21 – 240/40R18'],['Altezza sella','665 mm a vuoto'],['Peso','309 kg in ordine di marcia']],s:'harley-davidson.com, pagina modello Breakout 2025'},

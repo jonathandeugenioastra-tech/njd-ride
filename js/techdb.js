@@ -224,7 +224,7 @@ const DUCATI = {
 };
 
 export const TECH = { lowrider: DYNA, streetbob: DYNA, breakout: SOFTAIL, roadking: TOURING, electra: TOURING, indian: INDIAN, guzzi: GUZZI, panigale: DUCATI };
-export const FAMIGLIE = { 'Dyna Twin Cam': DYNA, 'Softail M8': SOFTAIL, 'Touring M8': TOURING, 'Indian': INDIAN, 'Moto Guzzi': GUZZI, 'Ducati Panigale V4': DUCATI };
+export const FAMIGLIE = { 'Dyna Twin Cam': DYNA, 'Softail M8': SOFTAIL, 'Touring M8': TOURING, 'Indian': INDIAN };
 
 export const MANUALI_UFF = [
   ['Harley-Davidson – manuali d\'uso (gratuiti, anche in italiano)', 'https://serviceinfo.harley-davidson.com'],
