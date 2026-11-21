@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0c0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NJ.D’ RIDE">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>NJ.D' RIDE — Custom Moto 3D Modelling Software</title>
+<link rel="stylesheet" href="css/fonts.css">
+<style>
+:root{--bg:#0a0b0d;--panel:#121418;--panel2:#191c21;--line:#262a31;--text:#eceef2;--muted:#8d93a0;--acc:#e8a33d;--acc2:#f6c66f;--cu:#c8743c;--ok:#4cc38a;--warn:#e8a33a;--hd:'Barlow Condensed',Inter,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 Inter,system-ui,sans-serif;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+header{height:62px;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--line);background:radial-gradient(1200px 120px at 0% 0%,rgba(232,163,61,.16),transparent 60%),linear-gradient(180deg,#17191e,#0f1114);position:relative}header:after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--acc),var(--cu) 35%,transparent 75%)}.emb{width:38px;height:38px;flex:none}
+.logo{font-family:var(--hd);font-weight:800;font-size:25px;letter-spacing:.08em;line-height:1}.logo small{display:block;font-family:Inter;font-weight:500;font-size:10.5px;letter-spacing:.18em;color:var(--muted);margin-top:3px}.logo b{color:var(--acc)}
+.sub{color:var(--muted);font-size:12px}.sp{flex:1}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,transform .1s;text-decoration:none;display:inline-block}.btn:active{transform:translateY(1px)}
+.btn:hover{border-color:#3b414c;background:#22262e}.btn.pri{background:linear-gradient(180deg,var(--acc2),var(--acc));border-color:var(--acc);color:#1a1205;font-weight:700;box-shadow:0 2px 10px rgba(232,163,61,.25)}.btn.pri:hover{background:var(--acc2)}
+.btn.sm{padding:4px 9px;font-size:12px}.btn.on{border-color:var(--acc);color:var(--acc2)}
+main{display:grid;grid-template-columns:1fr 380px;height:calc(100% - 62px)}main.closed{grid-template-columns:1fr 0}main.closed aside{display:none}
+#stage{display:flex;flex-direction:column;min-width:0;min-height:0;order:1}#stage #view{flex:1}
+#msgline{min-height:24px;padding:3px 12px;font-size:12px;color:var(--acc2);background:#0e1013;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#msgline:empty:before{content:'Tocca un pezzo della moto per selezionarlo · trascina per ruotare · pizzica o rotella per lo zoom';color:var(--muted)}
+#qbar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#121418;border-top:1px solid var(--line);overflow-x:auto;scrollbar-width:none}#qbar::-webkit-scrollbar{display:none}
+#qbar .qn{min-width:150px;max-width:260px;flex:none;line-height:1.15}#qbar .qn b{display:block;font-family:var(--hd);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#qbar .qn span{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.qb{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:58px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:5px 7px;cursor:pointer;font-size:10.5px;color:var(--text);flex:none}.qb i{font-style:normal;font-size:16px;line-height:1}.qb:hover:not(:disabled){border-color:var(--acc)}.qb:disabled{opacity:.35;cursor:default}.qb.on{border-color:var(--acc);color:var(--acc2);background:rgba(227,166,59,.12)}.qsep{width:1px;align-self:stretch;background:var(--line);flex:none;margin:0 2px}
+#qbar select{width:auto;flex:none;padding:5px 6px;font-size:12px}
+#cbar{display:flex;gap:6px;padding:7px 10px 9px;background:#0e1013;border-top:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.cb{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:84px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 8px;cursor:pointer;color:var(--muted);font-size:11px;white-space:nowrap}.cb i{font-style:normal;font-size:18px;color:var(--acc2)}.cb:hover{color:var(--text);border-color:#3d434f}.cb.on{border-color:var(--acc);color:var(--text);background:rgba(227,166,59,.1)}
+.code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#9aa0ab}.qa{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.inp{flex:1;min-width:0;background:#15171b;color:#eee;border:1px solid #3a3d44;border-radius:8px;padding:7px 10px;font:inherit}
+.ce{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0}.ce .r{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:3px 0}.ck{font-size:11.5px;color:#c6cad3;margin:2px 0 2px 6px}.ck.warn{color:var(--warn)}
+.rp .code{margin-top:1px}
+aside{order:2;min-width:0;overflow:hidden;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);background:#0f1114}
+.tabs button{flex:1 0 auto;padding-left:10px!important;padding-right:10px!important;background:none;border:0;border-bottom:2px solid transparent;padding:12px 1px 10px;cursor:pointer;color:var(--muted);font-family:var(--hd);font-size:12.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .15s,border-color .15s}.tabs button:hover{color:var(--text)}
+.adv ul{margin:4px 0 8px 16px;padding:0}.adv li{margin:3px 0}.adv .h{margin-top:8px;color:var(--acc2);font-size:11.5px;font-weight:600}.adv p{margin:4px 0}.adv .d{color:var(--muted);font-size:11px}
+#toast{display:none}
+#placeHint{display:none;color:#fff}
+.kbd{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:10.5px;color:var(--muted)}
+.tabs button.on{color:var(--text);border-bottom-color:var(--acc)}
+.pane{display:none;overflow-y:auto;overflow-x:hidden;padding:14px 14px 40px;flex:1}.pane.on{display:block}
+h3{margin:18px 0 9px;font-family:var(--hd);font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--acc2);font-weight:700;display:flex;align-items:center;gap:8px}h3:after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}h3:first-child{margin-top:2px}
+.models{display:grid;gap:8px}
+.mcard{display:grid;grid-template-columns:1fr auto;gap:2px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.mcard:hover{border-color:#3d434f}.mcard.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.mcard b{font-size:13px}.mcard span{color:var(--muted);font-size:11.5px}.mcard i{font-style:normal;color:var(--muted);font-size:11px;grid-row:span 2;align-self:center}
+.group{margin:10px 0 4px;color:var(--acc2);font-size:11.5px;font-weight:600}
+.plist{display:grid;gap:3px}
+.plist button{display:flex;gap:8px;align-items:center;text-align:left;background:none;border:1px solid transparent;border-radius:7px;padding:5px 7px;cursor:pointer;color:var(--muted);font-size:12px}
+.plist button:hover{border-color:var(--line);color:var(--text)}.plist button.on{border-color:var(--acc);color:var(--acc2);background:rgba(227,166,59,.08)}
+.dot{width:14px;height:14px;border-radius:4px;flex:none;border:1px solid #fff3}
+.sel{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.sel .nm{font-family:'Barlow Condensed',Inter;font-weight:700;font-size:19px;line-height:1.15}
+.row{display:flex;align-items:center;gap:8px;margin:7px 0}.row label{flex:0 0 96px;color:var(--muted);font-size:12px}
+select{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%}
+input[type=color]{width:40px;height:32px;border:1px solid var(--line);border-radius:7px;background:none;padding:2px;cursor:pointer}
+input[type=range]{flex:1;accent-color:var(--acc)}
+.sw{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.sw button{aspect-ratio:1;border-radius:9px;border:2px solid transparent;cursor:pointer}.sw button:hover{border-color:#fff8}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:12px}
+.chip:hover{border-color:#3d434f}.chip.on{background:rgba(227,166,59,.14);border-color:var(--acc);color:var(--acc2)}
+.note{color:var(--muted);font-size:11.5px;margin:6px 0}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin:7px 0;border-left:3px solid #5aa9e6}
+.card.warn{border-left-color:var(--warn)}.card.ok{border-left-color:var(--ok)}.card b{display:block;margin-bottom:2px}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600;font-size:11px;width:44%}
+a{color:var(--acc2)}
+#view{position:relative;min-width:0;min-height:0;background:#1d1f24}
+#view canvas{display:block;width:100%;height:100%;cursor:grab}
+.hud{position:absolute;display:flex;gap:6px;flex-wrap:wrap;align-items:center}.hud.b{left:12px;right:12px;bottom:12px;justify-content:center}.hud.t{left:12px;top:12px}
+.glass{background:rgba(14,16,20,.74);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px}
+.glass .btn{background:transparent;border-color:transparent}.glass .btn:hover{background:rgba(255,255,255,.07)}.glass .btn.on{color:var(--acc2);background:rgba(227,166,59,.13)}
+.info{padding:9px 12px;max-width:320px}.info .t{font-family:'Barlow Condensed',Inter;font-weight:700;font-size:16px}.info .s{color:var(--muted);font-size:11.5px}
+#tip{position:absolute;pointer-events:none;background:#000c;border:1px solid #fff2;padding:4px 8px;border-radius:6px;font-size:12px;display:none;white-space:nowrap}
+#load{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#16181c;z-index:4;color:var(--muted)}
+.bar{width:240px;height:4px;background:#2a2e36;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+.modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:20;padding:20px}.modal.on{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:min(1200px,96vw);max-height:92vh;overflow:auto;width:100%}
+.modal img{width:100%;border-radius:8px;display:block}
+#decalHint{display:none;color:#fff}
+.foot{border-top:1px solid var(--line);padding:8px 14px;font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;background:#0e1013}.foot b{color:var(--acc2);font-weight:600}
+.tfam{font-family:var(--hd);font-size:18px;font-weight:700;letter-spacing:.03em;margin:2px 0}.tsez{margin:14px 0 4px;font-weight:600;color:var(--text);font-size:12px;border-left:3px solid var(--cu);padding-left:7px}
+.ttab th{width:52%;font-weight:500;color:#c6cad3;font-size:11.5px}.ttab td b{font-variant-numeric:tabular-nums}.sub2{color:var(--muted);font-size:11px}.src{margin-top:2px;font-size:10px;color:#717784}
+.bdg{display:inline-block;border-radius:4px;padding:0 5px;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-right:3px}.bdg.uff{background:#1d3b2c;color:#6fe0a6}.bdg.cit{background:#1e3240;color:#7cc4f2}.bdg.nv{background:#3d3218;color:#f2c56a}.bdg.nr{background:#2b2d33;color:#a8adb8}
+.mrow label{flex:0 0 112px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mrow select{flex:1;min-width:0}.mrow input[type=color]{flex:none}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.rp{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px;cursor:pointer;color:var(--text)}.rp:hover{border-color:var(--acc)}.rp img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;background:#3a3d44}.rp b{font-size:12px;line-height:1.25}.rp span{font-size:10.5px;color:var(--muted)}
+.mk{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin:6px 0}.mk .btn{flex:none}
+.pdf{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:8px;padding:8px 10px;margin:6px 0}
+#splash{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:radial-gradient(900px 500px at 70% 20%,rgba(232,163,61,.18),transparent 60%),radial-gradient(700px 500px at 10% 90%,rgba(200,116,60,.14),transparent 60%),rgba(6,7,9,.94);backdrop-filter:blur(6px)}#splash.on{display:flex}
+#splash .in{max-width:880px;width:92vw;padding:34px 34px 26px;border:1px solid #2b2f37;border-radius:20px;background:linear-gradient(180deg,rgba(25,28,33,.92),rgba(14,16,19,.96));box-shadow:0 30px 80px rgba(0,0,0,.6)}
+#splash .k{font-family:var(--hd);font-weight:600;letter-spacing:.32em;font-size:12px;color:var(--acc2)}#splash h1{font-family:var(--hd);font-weight:800;font-size:clamp(40px,7vw,74px);line-height:.95;margin:8px 0 10px;letter-spacing:.02em}#splash h1 b{background:linear-gradient(90deg,var(--acc2),var(--cu));-webkit-background-clip:text;background-clip:text;color:transparent}
+#splash p.l{color:#b9bec8;font-size:15px;max-width:620px;margin:0 0 20px}#splash .g{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 22px}#splash .g div{border:1px solid var(--line);border-radius:12px;padding:12px;background:rgba(255,255,255,.02)}#splash .g b{font-family:var(--hd);font-size:17px;letter-spacing:.03em;display:block;color:var(--acc2)}#splash .g span{color:var(--muted);font-size:12px}
+#splash .cp{margin-top:18px;color:#7c828e;font-size:11.5px}@media (max-width:700px){#splash .g{grid-template-columns:1fr 1fr}}
+@media (max-width:900px){header{height:46px;padding:0 10px;gap:8px}header .btn{padding:5px 8px;font-size:12px}#bInfo,#bImp,#bHome{display:none}main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 40%;height:calc(100% - 46px)}main.closed{grid-template-rows:minmax(0,1fr) 0}aside{border-left:0;border-top:1px solid var(--line)}.sub{display:none}#qbar .qn{min-width:120px}.cb{min-width:74px}}
+
+/* barre scorrevoli: frecce ai lati, rotellina del mouse, barra sottile visibile */
+.hsw{position:relative;min-width:0;flex:none}.hsw>#qbar,.hsw>#cbar,.hsw>.tabs{scrollbar-width:thin;scrollbar-color:#4a4f5a transparent;scroll-behavior:smooth}
+.hsw>#qbar::-webkit-scrollbar,.hsw>#cbar::-webkit-scrollbar,.hsw>.tabs::-webkit-scrollbar{display:block;height:6px}.hsw ::-webkit-scrollbar-thumb{background:#4a4f5a;border-radius:3px}
+.hsA{position:absolute;top:0;bottom:0;width:34px;border:0;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:5;color:#f0c27a;font-size:20px;padding:0}
+.hsA.l{left:0;background:linear-gradient(90deg,rgba(14,16,19,.97) 55%,rgba(14,16,19,0))}.hsA.r{right:0;background:linear-gradient(270deg,rgba(14,16,19,.97) 55%,rgba(14,16,19,0))}
+.hsA.on{display:flex}.hsA:hover{color:#fff}
+#hov{margin-left:10px}#placeHint,#decalHint{margin-left:10px}
+
+/* telefono: intestazione compatta, aree sicure (notch), orizzontale con vista 3D e pannello affiancati */
+@media (max-width:900px){.logo{font-size:20px}.logo small{font-size:8.5px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}header .emb{width:34px!important;height:34px!important}}
+@media (max-height:520px) and (orientation:landscape){header{height:40px}main{grid-template-columns:minmax(0,1fr) 44%!important;grid-template-rows:none!important;height:calc(100% - 40px)!important}aside{border-top:0!important;border-left:1px solid var(--line)!important}.logo small{display:none}.foot{display:none}#qbar .qn{display:none}}
+@media (max-width:900px) and (orientation:portrait){header{padding-top:env(safe-area-inset-top);height:calc(46px + env(safe-area-inset-top))}main{height:calc(100% - 46px - env(safe-area-inset-top))}.foot{padding-bottom:max(8px,env(safe-area-inset-bottom))}}
+@media (max-height:520px) and (orientation:landscape){body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}}
+</style>
+<script type="importmap">{"imports":{"three":"./lib/three/build/three.module.js","three/addons/":"./lib/three/examples/jsm/"}}</script>
+</head>
+<body>
+<header>
+  <img class="emb" src="icon-128.png" alt="" style="width:46px;height:46px"><div class="logo">NJ.D' <b>RIDE</b><small>CUSTOM MOTO 3D MODELLING SOFTWARE</small></div>
+  <div class="sub">Modelli 3D reali · dati d'officina ufficiali · render 4K<br>© 2026 dott. Jonathan D'Eugenio</div>
+  <div class="sp"></div>
+  <button class="btn" id="bHome">Benvenuto</button><button class="btn" id="bInfo">Informazioni</button><button class="btn" id="bImp">Importa GLB</button><input type="file" id="fGlb" accept=".glb,.gltf" hidden>
+  <button class="btn pri" id="b4k">Render 4K</button>
+</header>
+<main>
+<aside>
+  <div class="tabs" id="tabs">
+    <button data-t="cfg" class="on">Configura</button><button data-t="mod">Modello</button><button data-t="prt">Pezzi</button><button data-t="edit">Officina</button><button data-t="acc">Accessori</button><button data-t="air">Aerografia</button><button data-t="dat">Scheda</button><button data-t="off">Norme</button>
+  </div>
+  <section class="pane on" id="p-cfg">
+    <div id="cfgSel"></div>
+    <h3>La tua configurazione <span class="note" id="cfgCount" style="margin:0"></span></h3><div id="cfgList"></div>
+    <div class="row" style="flex-wrap:wrap"><button class="btn sm" id="cfgStock">Riporta la moto di serie</button><button class="btn sm" id="cfgExport">Scarica il riepilogo</button></div>
+  </section>
+  <section class="pane" id="p-mod">
+    <h3>Garage</h3><div class="models" id="models"></div>
+    <h3>Ambiente fotografico</h3><div class="chips" id="envs"></div>
+    <h3>Luce</h3>
+    <div class="row"><label>Esposizione</label><input type="range" id="exp" min=".5" max="1.8" step=".01" value="1"></div>
+    <div class="row"><label>Rotazione luce</label><input type="range" id="lrot" min="0" max="6.283" step=".01" value="0"></div>
+  </section>
+  <section class="pane" id="p-prt">
+    <div class="sel">
+      <div class="note" id="selGroup">Pezzo selezionato</div>
+      <div class="nm" id="selName">Clicca un pezzo sulla moto</div>
+      <div class="row"><label>Colore</label><input type="color" id="sColor"><select id="sFinish"></select></div>
+      <div class="row"><button class="btn sm" id="sReset">Ripristina originale</button><button class="btn sm" id="sHide">Nascondi</button><button class="btn sm" id="sShow">Mostra tutti</button></div>
+    </div>
+    <h3>Tinte custom</h3><div class="sw" id="swatch"></div>
+    <h3>Carrozzeria rapida</h3>
+    <div class="row"><button class="btn sm" id="bodyAll">Applica la tinta a tutta la carrozzeria</button></div>
+    <div class="note" id="bodyNote"></div>
+    <h3>Tutti i pezzi del modello</h3><div id="plist"></div>
+  </section>
+  <section class="pane" id="p-edit">
+    <div class="sel">
+      <div class="note">Pezzo selezionato</div><div class="nm" id="eName">Clicca un pezzo sulla moto</div>
+      <div class="row"><label>Selezione</label><select id="eSelMode"><option value="piece">Pezzo singolo</option><option value="mesh">Gruppo intero</option></select></div>
+      <div class="row"><label>Maniglie</label><select id="eMode"><option value="translate">Sposta (G)</option><option value="rotate">Ruota (R)</option><option value="scale">Scala (S)</option></select></div>
+      <div class="row"><label>Larghezza X</label><input type="range" id="esx" min=".3" max="2.5" step=".01" value="1"><b id="osx">100%</b></div>
+      <div class="row"><label>Altezza Y</label><input type="range" id="esy" min=".3" max="2.5" step=".01" value="1"><b id="osy">100%</b></div>
+      <div class="row"><label>Profondità Z</label><input type="range" id="esz" min=".3" max="2.5" step=".01" value="1"><b id="osz">100%</b></div>
+      <label class="toggle" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" id="eLock"> proporzionale</label>
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" id="eDel">Elimina</button><button class="btn sm" id="eDup">Duplica sull'altro lato</button><button class="btn sm" id="eReset">Ripristina pezzo</button><button class="btn sm" id="eUndo">Annulla</button><button class="btn sm" id="eShowAll">Mostra tutto</button><button class="btn sm" id="eMirror" style="display:none"></button></div>
+      <h3 style="margin-top:10px">Ruota e capovolgi (esatto)</h3>
+      <div class="row"><label>Asse</label><select id="eAxis"><option value="y">Verticale (Y)</option><option value="x">Longitudinale (X, avanti-dietro)</option><option value="z">Trasversale (Z, destra-sinistra)</option></select></div>
+      <div class="row"><label>Riferimento</label><select id="eAxSpace"><option value="own">Assi del pezzo</option><option value="world">Assi della moto</option></select></div>
+      <div class="row" style="flex-wrap:wrap;gap:6px"><button class="btn sm" data-rot="-90">↺ 90°</button><button class="btn sm" data-rot="90">↻ 90°</button><button class="btn sm" data-rot="180">180°</button><button class="btn sm" data-rot="360">360°</button><button class="btn sm" data-rot="-45">↺ 45°</button><button class="btn sm" data-rot="45">↻ 45°</button><button class="btn sm" data-rot="-15">↺ 15°</button><button class="btn sm" data-rot="15">↻ 15°</button></div>
+      <div class="row"><label>Angolo libero</label><input type="number" id="eRotDeg" value="30" step="1" style="width:80px;background:#0f1114;color:#eef;border:1px solid var(--line);border-radius:6px;padding:4px 6px"><span>°</span><button class="btn sm" id="eRotGo">Ruota</button></div>
+      <div class="row" style="flex-wrap:wrap;gap:6px"><button class="btn sm" data-flip="z">⇆ Specchia orizzontale</button><button class="btn sm" data-flip="y">⇅ Capovolgi verticale</button><button class="btn sm" data-flip="x">↔ Avanti / indietro</button></div>
+      <div class="row"><label>Passo maniglie</label><select id="eSnap"><option value="0">Libero</option><option value="5">5°</option><option value="15" selected>15°</option><option value="45">45°</option><option value="90">90°</option></select></div>
+      <div class="note"><span class="kbd">Canc</span> elimina · <span class="kbd">Ctrl+Z</span> annulla · <span class="kbd">G</span>/<span class="kbd">R</span>/<span class="kbd">S</span> maniglie</div>
+    </div>
+    <h3>Vernicia solo questo pezzo</h3>
+    <div class="row"><input type="color" id="ePColor" value="#7e0b12"><select id="ePFin"></select><button class="btn sm" id="ePApply">Applica</button></div>
+    <div id="eOptsWrap" style="display:none"><h3>Opzioni del ricambio</h3><div id="eOpts"></div></div>
+    <div id="eMatsWrap" style="display:none"><h3>Colori e finiture dei componenti</h3><div class="note">Ogni componente si può ricolorare e cambiare di finitura: cromo, nero lucido o goffrato, alluminio, oro, ottone, vernici candy e perlate, pelle…</div><div id="eMats"></div></div>
+    <h3>Trasferisci tra moto</h3>
+    <div class="row"><button class="btn sm" id="eCopy">Copia pezzo</button><span class="note" id="eClipN">Appunti vuoti</span></div>
+    <div class="note">Copia un pezzo (per esempio le borse della Road King o la carenatura dell'Electra Glide), carica un'altra moto e montalo da «Accessori → Pezzi copiati».</div>
+    <h3>Tipo di pezzo (per i consigli)</h3><select id="eType"></select>
+    <h3>Consulente meccanico</h3><div id="eAdv" class="note">Seleziona un pezzo: qui trovi cosa comporta toglierlo o modificarlo, cosa fare e come migliorarlo.</div>
+  </section>
+  <section class="pane" id="p-acc">
+    <h3>Catalogo accessori</h3><div class="note">Oltre 2.000 articoli con codice, tutti modificabili: cerca per nome, tipo, colore o codice, scegli l'articolo e clicca sulla moto dove montarlo. In <b>Officina</b> poi regoli misure, colori e finiture.</div>
+    <div class="row"><input id="catQ" type="search" placeholder="Cerca: cupolino fumé, scarico slash, CG-SEL-0012…" style="flex:1;min-width:0;background:#15171b;color:#eee;border:1px solid #3a3d44;border-radius:8px;padding:8px 10px;font:inherit"></div>
+    <div class="chips" id="catCats" style="margin:6px 0"></div><div class="note" id="catCount"></div><div id="catGrid" class="rgrid"></div><div class="row" id="catPager" style="justify-content:space-between"></div>
+    <h3>Sostituisci le gomme della moto</h3>
+    <div class="row"><select id="tireKind"><option value="road">Stradale moderna</option><option value="firestone">Vintage a righe</option><option value="vintage">Vintage a diamante</option><option value="knobby">Tassellata</option></select></div>
+    <div class="row"><label class="toggle"><input type="checkbox" id="tireWW"> fascia bianca</label><button class="btn sm pri" id="accTires">Applica</button></div>
+    <h3>Sostituisci le ruote complete (cerchio + gomma)</h3>
+    <div class="row"><select id="whStyle"><option value="cast5">Lega 5 razze</option><option value="cast9">Lega 9 razze</option><option value="turbine">Turbina</option><option value="billet">Billet a lame curve</option><option value="disc">Lenticolari piene</option><option value="laced">A raggi 40</option><option value="laced80">A raggi 80</option><option value="bigspoke">Big spoke</option></select>
+      <select id="whFin"><option value="black">Nero lucido</option><option value="chrome">Cromato</option><option value="alu">Alluminio</option><option value="gold">Oro anodizzato</option></select></div>
+    <div class="row"><label class="toggle"><input type="checkbox" id="whWW"> fascia bianca</label><button class="btn sm pri" id="accWheels">Applica</button></div>
+    <h3>Pezzi copiati da altre moto</h3><div class="chips" id="clipLib"><span class="note">Nessuno: usa «Copia pezzo» in Officina 3D.</span></div>
+    <h3>Ricambi PRO personalizzabili</h3><div class="note">Ricambi custom modellati sulle misure del catalogo: dopo averli montati, in <b>Officina</b> scegli forma, misure, colori e finiture di ogni componente (pelle, cuciture, cromature, lenti…).</div>
+    <div class="chips" id="proCat" style="margin:6px 0"></div><div id="proLib" class="rgrid"></div>
+    <h3>Ricambi 3D reali</h3><div class="note">Modelli 3D veri di ricambi custom, ripuliti e portati alle misure reali. Scegli il pezzo, clicca sulla moto dove montarlo, poi spostalo, ruotalo, scalalo o verniciarlo in Officina. Funziona su tutte le moto del garage.</div>
+    <div class="chips" id="realCat" style="margin:6px 0"></div><div id="realLib" class="rgrid"></div>
+    <h3>Mercato ricambi custom</h3><div class="note">Marche e tipologie disponibili sul mercato per ogni categoria, con il rimando alla pagina del catalogo Zodiac Bikers Book (1480 pagine).</div>
+    <details><summary class="btn sm" style="margin:6px 0">Mostra le 21 categorie</summary><div id="market"></div></details>
+    <h3>Libreria accessori</h3><div class="note">Scegli un accessorio, poi clicca sulla moto dove montarlo. Lo regoli con le maniglie e i cursori in Officina 3D.</div>
+    <div id="accLib"></div>
+    <h3>Costruttore di scarichi</h3>
+    <div class="row"><button class="btn sm pri" id="pStart">Nuovo scarico: clicca i punti</button><button class="btn sm" id="pEnd">Termina</button></div>
+    <div class="row"><label>Ø tubo (mm)</label><input type="range" id="pR" min="15" max="32" value="22"></div>
+    <div class="row"><label>Ø silenziatore</label><input type="range" id="pMR" min="30" max="70" value="45"></div>
+    <div class="row"><label>Lunghezza sil.</label><input type="range" id="pML" min="150" max="800" value="450"></div>
+    <div class="row"><label>Terminale</label><select id="pTip"><option value="slash">Slash cut</option><option value="straight">Dritto</option><option value="fishtail">Fishtail</option><option value="mega">Megafono</option><option value="turnout">Turnout</option></select></div>
+    <div class="row"><label>Finitura</label><select id="pMat"><option value="chrome">Cromato</option><option value="blackchrome">Black chrome</option><option value="alu">Inox spazzolato</option><option value="satin">Nero ceramico</option></select></div>
+    <label class="toggle"><input type="checkbox" id="pMuf" checked> con silenziatore</label> <label class="toggle"><input type="checkbox" id="pHandles" checked> mostra i punti per modificarlo</label>
+    <div class="note">Per modificare il percorso, clicca un punto arancione e trascinalo con le maniglie: il tubo si ricalcola dal vivo.</div>
+  </section>
+  <section class="pane" id="p-air">
+    <h3>Grafica</h3><div class="chips" id="gfx"></div>
+    <div class="row"><label>Colore 1</label><input type="color" id="g1" value="#ffb21e"><label style="flex:0 0 auto">Colore 2</label><input type="color" id="g2" value="#c4120c"></div>
+    <div class="row"><label>Dimensione</label><input type="range" id="gS" min=".06" max=".9" step=".01" value=".26"></div>
+    <div class="row"><label>Allungamento</label><input type="range" id="gA" min=".3" max="3" step=".01" value="1"></div>
+    <div class="row"><label>N. lingue / linee</label><input type="range" id="gN" min="2" max="11" step="1" value="5"></div>
+    <div class="row"><label>Lunghezza lingue</label><input type="range" id="gL" min=".35" max="1" step=".01" value=".9"></div>
+    <div class="row"><label>Bordo (filetto)</label><input type="range" id="gW" min="0" max="24" step="1" value="7"></div>
+    <div class="row"><label>Sfumatura</label><input type="checkbox" id="gG" checked><label style="flex:0 0 auto">Lucido trasparente</label><input type="checkbox" id="gC" checked></div>
+    <div class="note">Modifiche dal vivo: i cursori aggiornano l'ultima grafica posata finché non ne posi un'altra.</div>
+    <div class="row"><label>Rotazione</label><input type="range" id="gR" min="-3.14" max="3.14" step=".01" value="0"></div>
+    <div class="row"><button class="btn sm" id="bImg">Carica una tua grafica (PNG)</button><input type="file" id="fImg" accept="image/*" hidden></div>
+    <div class="row"><button class="btn pri sm" id="bPlace">Posiziona sulla moto</button><button class="btn sm" id="bMirror">Specchia sull'altro lato</button><button class="btn sm" id="bUndo">Annulla ultima</button></div>
+    <div class="note">Premi «Posiziona», poi clicca sul serbatoio, sui parafanghi o sulle borse: la grafica viene proiettata sulla superficie reale del pezzo e ne segue la curvatura.</div>
+  </section>
+  <section class="pane" id="p-dat">
+    <h3 id="datT">Scheda tecnica</h3><table id="spec"></table>
+    <div class="note" id="specSrc"></div>
+    <h3>Dati d'officina: coppie, fluidi, pneumatici</h3>
+    <div class="row"><label>Famiglia</label><select id="techFam"></select></div>
+    <div class="row"><label>Cerca</label><input id="techQ" placeholder="es. perno, pinza, candele, forcella" style="flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 8px"></div>
+    <div class="note"><span class="bdg uff">Ufficiale</span> letto sul manuale della casa · <span class="bdg cit">Da manuale ufficiale</span> riprodotto fedelmente da fonte terza · <span class="bdg nv">Non verificato</span> · <span class="bdg nr">Consultare il service manual</span>: nessun numero inventato.</div>
+    <div id="tech"></div>
+    <h3>Manuali d'officina PDF</h3><div id="pdfs"></div>
+    <h3>Manuale d'uso e manutenzione</h3><div id="man"></div>
+    <h3>Modello 3D e licenza</h3><div id="credit" class="note"></div>
+  </section>
+  <section class="pane" id="p-off">
+    <h3>Normativa italiana</h3>
+    <div class="card"><b>Art. 78 CdS</b>La moto deve corrispondere alla carta di circolazione: le modifiche alle caratteristiche costruttive richiedono visita e prova in Motorizzazione e aggiornamento del documento.</div>
+    <div class="card"><b>Componenti omologati</b>Terminali di scarico, specchietti e gruppi ottici aftermarket omologati per il modello si montano senza collaudo; tieni a bordo il certificato.</div>
+    <div class="card warn"><b>Scarichi e db-killer</b>Senza certificato o senza db-killer lo scarico non è conforme: sanzioni dall'art. 72 fino all'art. 78 con ritiro della carta di circolazione.</div>
+    <div class="card"><b>AC 2201</b>La proposta di legge che semplifica l'art. 78 per i componenti omologati è ancora in esame in Commissione: non è legge.</div>
+    <h3>Geometria di sterzo</h3>
+    <div class="row"><label>Cannotto (°)</label><input type="range" id="gRake" min="22" max="40" step=".5" value="30"><b id="oRake">30°</b></div>
+    <div class="row"><label>Offset (mm)</label><input type="range" id="gOff" min="0" max="80" value="40"><b id="oOff">40</b></div>
+    <div class="row"><label>Raggio ruota (mm)</label><input type="range" id="gRad" min="290" max="380" value="320"><b id="oRad">320</b></div>
+    <div class="card ok" id="trail"></div>
+    <h3>Coppie di serraggio – viteria metrica standard</h3>
+    <table><tr><th>Vite</th><td><b>Classe 8.8</b></td><td><b>Classe 10.9</b></td></tr>
+      <tr><th>M5</th><td>6 Nm</td><td>8,5 Nm</td></tr><tr><th>M6</th><td>10 Nm</td><td>14 Nm</td></tr><tr><th>M8</th><td>25 Nm</td><td>35 Nm</td></tr>
+      <tr><th>M10</th><td>49 Nm</td><td>69 Nm</td></tr><tr><th>M12</th><td>85 Nm</td><td>120 Nm</td></tr></table>
+    <div class="note">Valori di riferimento per viteria in acciaio con filetto leggermente oliato (attrito circa 0,14). Su alluminio, inserti filettati o viti inox usa valori più bassi; con frenafiletti segui la scheda del prodotto. Serra sempre con chiave dinamometrica tarata e in sequenza incrociata sui coperchi.</div>
+    <div class="card warn"><b>Organi da serrare solo con il valore del costruttore</b>Perni ruota e dadi dei perni · viti delle pinze freno e dei dischi · piastre forcella e cavallotti manubrio · perno forcellone e attacchi ammortizzatori · dadi dei collettori di scarico · viti testata e candele · corona/puleggia posteriore. Il valore è nel manuale d'officina del tuo modello e anno: apri il manuale ufficiale dalla scheda «Scheda» della moto.</div>
+    <div class="card"><b>Viteria in pollici (Harley-Davidson)</b>Molte Harley usano viteria UNC/UNF in pollici e coppie in ft-lb o in-lb: converti con 1 ft-lb = 1,356 Nm e 1 in-lb = 0,113 Nm, e usa sempre i valori del manuale.</div>
+    <h3>Sicurezza in officina</h3>
+    <div class="card warn"><b>Verniciatura e aerografia</b>Trasparenti 2K con isocianati: cabina aspirata, protezione respiratoria, guanti in nitrile, schede di sicurezza. In cabina valuta il rischio ATEX.</div>
+    <div class="card"><b>Dopo ogni modifica</b>Coppie di serraggio con dinamometrica · cavi liberi a sterzo tutto girato · spurgo freni · luci e frecce · pressione pneumatici · eventuale rimappatura dopo scarico o filtro.</div>
+  </section>
+  <div class="foot"><span>© 2026 <b>dott. Jonathan D'Eugenio</b> · Tutti i diritti riservati</span><span>v1.6.2</span></div>
+</aside>
+<div id="stage">
+<div id="view">
+  <div id="load"><img src="badge_512.png" alt="NJ.D' RIDE" style="width:min(300px,50vw)"><div class="logo">NJ.D' <b>RIDE</b></div><div id="loadT">Caricamento…</div><div class="bar"><i id="loadB"></i></div></div>
+  <div id="tip" style="display:none!important"></div>
+</div>
+<div id="msgline"><span id="toast"></span><span id="hov" style="color:var(--muted)"></span><span id="placeHint"></span><span id="decalHint">Clicca sulla superficie per applicare la grafica · Esc per annullare</span></div>
+<div id="qbar">
+  <div class="qn"><b id="qName">—</b><span id="qCat"></span></div>
+  <button class="qb" data-q="focus"><i>⊕</i>Ingrandisci</button><button class="qb" data-q="color"><i>◍</i>Colore</button><button class="qb" data-q="swap"><i>⇄</i>Sostituisci</button>
+  <button class="qb" data-q="piece" title="Passa da pezzo singolo a tutto il gruppo con lo stesso materiale e viceversa"><i>◇</i>Gruppo</button><button class="qb" data-q="del"><i>✕</i>Elimina</button><button class="qb" data-q="reset"><i>↺</i>Ripristina</button><button class="qb" data-q="none"><i>○</i>Deseleziona</button>
+  <span class="qsep"></span><button class="qb" data-q="undo" id="qUndo"><i>↶</i>Annulla</button><button class="qb" data-q="redo" id="qRedo"><i>↷</i>Rifai</button>
+  <span class="qsep"></span><button class="qb" data-q="fit"><i>⛶</i>Inquadra</button><select id="camSel" title="Vista"><option value="">Vista…</option></select>
+  <button class="qb" id="tRot"><i>⟳</i>Rotazione</button><button class="qb" id="tClay"><i>◌</i>Argilla</button><button class="qb" data-q="panel" id="qPanel"><i>▤</i>Pannello</button>
+  <div id="info" style="display:none"></div><div id="cams" style="display:none"></div>
+</div>
+<div id="cbar"></div>
+</div>
+</main>
+<div id="splash"><div class="in">
+  <div class="row" style="gap:12px;margin:0"><img class="emb" src="icon-128.png" alt="" style="width:60px;height:60px"><div class="k">OFFICINA DIGITALE · MOTO CUSTOM</div></div>
+  <h1>NJ.D' <b>RIDE</b></h1>
+  <p class="l">Progetta la tua custom su modelli 3D reali di Harley-Davidson, Indian, Moto Guzzi e Ducati: ogni pezzo si sposta, si ridimensiona, si toglie e si vernicia, con i dati d'officina ufficiali sempre a portata di mano.</p>
+  <div class="g"><div><b>8 moto reali</b><span>Dyna, Softail, Touring, Indian, Guzzi, Panigale</span></div><div><b>Officina 3D</b><span>sposta, ruota, scala, elimina e ripristina ogni pezzo</span></div><div><b>Libreria custom</b><span>cerchi, gomme, forcelle, scarichi, selle, serbatoi, cupolini, borse</span></div><div><b>Dati ufficiali</b><span>coppie di serraggio, fluidi, pneumatici e manuali</span></div></div>
+  <button class="btn pri" id="splashGo" style="font-size:15px;padding:11px 22px">Entra in garage</button>
+  <div class="cp">© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Marchi e design delle moto appartengono ai rispettivi titolari.</div>
+</div></div>
+<div class="modal" id="mInfo"><div class="box" style="max-width:720px">
+  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.6.2</b><button class="btn sm" data-close>Chiudi</button></div>
+  <p>© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Software, interfaccia, libreria accessori, consulente meccanico e testi sono opera dell'autore.</p>
+  <h3>Modelli 3D di terzi (licenza CC BY 4.0)</h3>
+  <ul class="note" id="infoCred"></ul>
+  <p class="note">Marchi e design delle moto appartengono ai rispettivi titolari; i modelli sono usati a scopo di progettazione e personalizzazione. Motore 3D: three.js (licenza MIT). Le indicazioni tecniche e normative sono generali e non sostituiscono il manuale d'officina, la verifica di un'officina qualificata e della Motorizzazione.</p>
+</div></div>
+<div class="modal" id="m4k"><div class="box">
+  <div class="row" style="justify-content:space-between"><b id="m4kT">Render 3840 × 2160</b><button class="btn sm" data-close>Chiudi</button></div>
+  <p class="note">Per salvare: clic destro sull'immagine → «Salva immagine con nome».</p><img id="img4k" alt="Render 4K della moto configurata">
+</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as STK from './js/stock.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
+import { initOfficina } from './js/officina.js';
+import { initConfig } from './js/config.js';
+import { TECH, FAMIGLIE, MANUALI_UFF, techHTML } from './js/techdb.js';
+import { marketHTML } from './js/market.js';
+import { PARTS } from './js/parts.js';
+
+/* ---------------- GARAGE: modelli reali (Sketchfab, CC BY 4.0) ---------------- */
+const MODELS=[
+ {id:'lowrider',flip:1,n:'Harley-Davidson Dyna Low Rider S',y:'2016',tri:'407k',a:'everhard',u:'https://sketchfab.com/3d-models/2016-harley-davidson-fxdls-dyna-low-rider-s-ad65bcb9282a46459a9a42f787bb5cbd',body:['white_body__prim_env_6_spec','dyna_grey2','dyna_grey2__env_2_spec','dyna_grey__env_2_spec','dyna_grey__spec'],brand:'hd'},
+ {id:'streetbob',flip:1,n:'Harley-Davidson Dyna Street Bob',y:'2017',tri:'289k',a:'everhard',u:'https://sketchfab.com/3d-models/2017-harley-davidson-fxdb-dyna-street-bob-8d26a800d1d849b89b15388246f83540',body:['white__prim_env_6_spec','dyna_grey2','dyna_grey2__env_26_spec','dyna_grey__spec'],brand:'hd'},
+ {id:'breakout',flip:1,n:'Harley-Davidson Softail Breakout',y:'2018',tri:'560k',a:'Dakta.Grower.Nzl',u:'https://sketchfab.com/3d-models/harley-davidson-1745-softail-breakout-fxbr-2018-d95b21e651d24d6fb196c6e5cb971faf',body:['cover_material'],brand:'hd'},
+ {id:'roadking',flip:1,n:'Harley-Davidson Road King Special',y:'2018',tri:'164k',a:'everhard',u:'https://sketchfab.com/3d-models/harley-davidson-flhrxs-road-king-special-881433de7df245b3bc435360bb5006a9',body:['roadking_mc__env_1','roadking_grey__env_1'],brand:'hd'},
+ {id:'electra',flip:1,n:'Harley-Davidson Electra Glide (FLHTP)',y:'—',tri:'313k',a:'everhard',u:'https://sketchfab.com/3d-models/harley-davidson-flhtp-electra-glide-police-la-417dadb8e40a48fd9386ec22a412d964',body:['hpolice__env_3','hpolice3__env_3','hpolice4__env_3','hpolice5__env_3'],brand:'hd'},
+ {id:'indian',n:'Indian Bobber custom',y:'—',tri:'77k',a:'windupbird',u:'https://sketchfab.com/3d-models/bobber-indian-bebc000d6b7a4492a6cce581d0eabf8e',body:[],brand:'indian'},
+ {id:'chopper',flip:true,n:'Harley-Davidson chopper bobber vintage custom',y:'custom',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=harley-davidson-custom-vintage-chopper-bobber',body:[],brand:'harley'},
+{id:'roadglide',n:'Harley-Davidson bagger stile Road Glide custom',y:'custom',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=harley-davidson-custom-road-glide-style-bagger',body:[],brand:'harley'},
+{id:'cvo',n:'Harley-Davidson CVO bagger custom',y:'custom',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=harley-davidson-cvo-luxury-custom-bagger',body:[],brand:'harley'},
+{id:'monster',n:'Ducati Monster',y:'—',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=ducati-monster',body:[],brand:'ducati'},
+{id:'bobbercustom',flip:true,n:'Harley-Davidson bobber custom nero e rame',y:'custom',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=harley-davidson-custom-bobber',body:[],brand:'harley'},
+{id:'guzzivtwin',n:'Moto Guzzi V-twin custom',y:'custom',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=moto-guzzi-v-twin',body:[],brand:'guzzi'},
+{id:'elohv',n:'Harley-Davidson EL Knucklehead OHV V-twin',y:'storica',tri:'—',a:'Sketchfab (modello gratuito)',u:'https://sketchfab.com/search?type=models&q=harley-davidson-motorcycle-el-ohv-v-twin',body:[],brand:'harley'},
+{id:'guzzi',n:'Moto Guzzi 850 Le Mans',y:'storica',tri:'900k',a:'TG13730',u:'https://sketchfab.com/3d-models/barak-afritt-guzzi-850-le-mans-eb87d6cf412445f58f781a36a5cdace8',body:[],brand:'guzzi'},
+ {id:'panigale',n:'Ducati Panigale V4 SP',y:'2021',tri:'221k',a:'Carlito (brainlesszombie5)',u:'https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f',body:['mat_livery_0_160_001'],brand:'ducati'}
+];
+const SPECS={
+ breakout:{t:'Breakout (gamma 2025, dati ufficiali)',r:[['Motore','Milwaukee-Eight 117 Custom'],['Potenza / coppia','104 HP @ 4800 giri · 126 ft-lb'],['Inclinazione cannotto','34°'],['Avancorsa','145 mm'],['Interasse','1.695 mm'],['Pneumatici','130/60B21 – 240/40R18'],['Altezza sella','665 mm a vuoto'],['Peso','309 kg in ordine di marcia']],s:'harley-davidson.com, pagina modello Breakout 2025'},
+ electra:{t:'Gamma touring: Street Glide 2025 (riferimento ufficiale)',r:[['Motore','Milwaukee-Eight 117, 1.923 cm³, teste raffreddate a liquido'],['Rake / avancorsa','26° / 6,7 in'],['Interasse','64 in'],['Pneumatici','130/60B19 – 180/55B18'],['Altezza sella','715 mm a vuoto'],['Peso','368 kg in ordine di marcia']],s:'harley-davidson.com, pagina Street Glide 2025. Il modello 3D è una Electra Glide FLHTP: dati di gamma, non dello stesso modello.'},
+ roadking:{t:'Road King Special',r:[['Motore','V2 45° Milwaukee-Eight 114 (1.868 cm³)'],['Trasmissione finale','cinghia']],s:'Dati sintetici: verifica sulla scheda ufficiale H-D dell\'anno del tuo veicolo.'},
+ lowrider:{t:'Dyna Low Rider S (2016)',r:[['Motore','V2 45° Screamin\' Eagle Twin Cam 110'],['Trasmissione finale','cinghia']],s:'Modello fuori produzione: verifica sul manuale d\'uso dell\'anno.'},
+ streetbob:{t:'Dyna Street Bob (2017)',r:[['Motore','V2 45° Twin Cam 103'],['Trasmissione finale','cinghia']],s:'Modello fuori produzione: verifica sul manuale d\'uso dell\'anno.'},
+ guzzi:{t:'Moto Guzzi 850 Le Mans (serie storica)',r:[['Motore','V2 90° trasversale, 844 cm³, raffreddato ad aria'],['Trasmissione finale','cardano']],s:'Dati storici indicativi: verifica sul manuale d\'uso dell\'anno del tuo veicolo.'},
+ panigale:{t:'Panigale V4 SP',r:[['Motore','Desmosedici Stradale V4 90°, 1.103 cm³'],['Trasmissione finale','catena']],s:'Verifica sulla scheda ufficiale Ducati del model year.'}
+};
+const MAN={indian:['Indian Motorcycle – Owner\'s Manuals','https://www.indianmotorcycle.com/en-us/owners-manuals/'],guzzi:['Moto Guzzi – Manuali d\'uso e manutenzione','https://manuals.motoguzzi.com'],hd:['Harley-Davidson – Owner\'s Manuals (anche in italiano)','https://serviceinfo.harley-davidson.com'],ducati:['Ducati – Libretti uso e manutenzione','https://www.ducati.com/it/it/servizi-manutenzione/libretti-uso']};
+
+/* ---------------- categorie dei pezzi dai nomi materiale ---------------- */
+const CATS=[
+ ['Carrozzeria e verniciatura',/body|livery|cover_material|hpolice|roadking_mc|roadking_grey|dyna_grey|white__prim/i],
+ ['Pneumatici',/tire|tyre|dunlop|htire/i],['Cerchi',/rim|hre|wheel/i],['Freni',/disk|brake|rotor|caliper/i],
+ ['Scarico',/muffler|exmanifold|exhaust|pipe/i],['Motore',/motor|twin_cam|114ci|mechanics|engine|gear|filter/i],
+ ['Cromature',/chrome|med__|silver|nise/i],['Sella',/seat|indian_seat/i],['Trasmissione',/belt|chain/i],
+ ['Luci e indicatori',/light|indicator|reflector|lamp|orange|red_back|yelow/i],['Vetri e specchi',/glass|miror|mirror/i],
+ ['Strumentazione',/tacho|gauge|cockpit|dash/i],['Targa',/plate|carp/i],['Parti nere',/black|dark|dmetal|bron|bolts|cables|flange/i]];
+const catOf=n=>{for(const [c,r] of CATS)if(r.test(n))return c;return 'Altri pezzi';};
+const nice=n=>n.replace(/__.*$/,'').replace(/_\d+$/,'').replace(/[_]+/g,' ').trim();
+
+/* ---------------- finiture ---------------- */
+const FIN=[['orig','Finitura originale'],['gloss','Lucido'],['metallic','Metallizzato'],['candy','Candy'],['pearl','Perlato'],['flake','Metal flake'],['matte','Opaco'],['satin','Satinato'],['chrome','Cromato'],['blackchrome','Black chrome'],['brushed','Alluminio spazzolato'],['polished','Alluminio lucidato'],['titanium','Titanio bruciato'],['ceramic','Ceramico'],['wrinkle','Goffrato'],['leather','Pelle']];
+const SW=[['Rosso candy','#7e0b12','candy'],['Nero vivid','#0a0a0c','gloss'],['Petrolio','#0f3a4a','metallic'],['Verde bosco','#1f3a2a','metallic'],['Arancio','#d4560f','gloss'],['Argento','#b8bcc4','metallic'],['Bianco perla','#ece8e0','pearl'],['Canna di fucile','#3b3f45','matte'],['Oro flake','#b8862b','flake'],['Viola candy','#4b1460','candy'],['Sabbia','#8b7d5a','matte'],['Blu flake','#1d3c9a','flake']];
+
+/* ---------------- renderer ---------------- */
+const view=document.getElementById('view');
+const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
+/* livello di qualità secondo la scheda video (0 = integrata vecchia, 1 = integrata recente, 2 = dedicata); si abbassa da solo se i fotogrammi sono lenti */
+const GPU=(()=>{try{const gl=renderer.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info');return e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):'';}catch(e){return '';}})();
+let TIER=/SwiftShader|Basic Render|llvmpipe|HD Graphics( [2-6]\d\d)?\b|GMA/i.test(GPU)?0:/Intel|UHD|Iris|Radeon\(TM\) Graphics|Vega \d+ Graphics|Mali|Adreno|Apple GPU/i.test(GPU)?1:2;
+const Q=()=>[{dpr:Math.min(devicePixelRatio,1),move:.75,msaa:0,shadow:1024},{dpr:Math.min(devicePixelRatio,1.5),move:1,msaa:4,shadow:2048},{dpr:Math.min(Math.max(devicePixelRatio,1.5),2),move:1.25,msaa:8,shadow:4096}][TIER];
+renderer.setPixelRatio(Q().dpr);renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
+view.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(30,1,.05,80);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.495;controls.minDistance=1;controls.maxDistance=10;controls.autoRotateSpeed=1;
+const pmrem=new THREE.PMREMGenerator(renderer);
+const rt=new THREE.WebGLRenderTarget(1,1,{type:THREE.HalfFloatType,samples:Q().msaa});
+const composer=new EffectComposer(renderer,rt);composer.addPass(new RenderPass(scene,camera));
+const smaa=new SMAAPass(1,1);composer.addPass(smaa);composer.addPass(new OutputPass());
+const MAXANI=renderer.capabilities.getMaxAnisotropy();
+const envTex=pmrem.fromScene(new RoomEnvironment(),.035).texture;scene.environment=envTex;
+const key=new THREE.DirectionalLight(0xffffff,1.9);key.castShadow=true;key.shadow.mapSize.set(Q().shadow,Q().shadow);
+Object.assign(key.shadow.camera,{left:-2.2,right:2.2,top:2.2,bottom:-2.2,near:.5,far:14});key.shadow.bias=-.0002;key.shadow.normalBias=.02;key.shadow.radius=5;
+const rimL=new THREE.DirectionalLight(0xcfe0ff,1.0);const fillL=new THREE.DirectionalLight(0xfff4e8,.45);scene.add(key,key.target,rimL,fillL);
+const ground=new THREE.Mesh(new THREE.CircleGeometry(40,128),new THREE.MeshStandardMaterial({color:0x2c2e33,roughness:.92,metalness:0}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+function grad(a,b){const c=document.createElement('canvas');c.width=c.height=1024;const g=c.getContext('2d');const l=g.createLinearGradient(0,0,0,1024);l.addColorStop(0,a);l.addColorStop(1,b);g.fillStyle=l;g.fillRect(0,0,1024,1024);
+  const r=g.createRadialGradient(512,600,60,512,600,780);r.addColorStop(0,'rgba(255,255,255,.10)');r.addColorStop(1,'rgba(0,0,0,.35)');g.fillStyle=r;g.fillRect(0,0,1024,1024);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
+const ENVS={studio:['Studio scuro','#34363c','#16171a',0x141518,1.0,'studio'],garage:['Officina','#3a3530','#15120f',0x1d1a17,1.0,'workshop'],grey:['Limbo grigio','#a3a4aa','#77787d',0x55565a,1.05,'studio'],white:['Bianco catalogo','#f6f6f7','#e4e4e6',0x9c9ca0,.95,'studio'],night:['Notte','#11141a','#040507',0x0a0b0d,1.15,'warehouse']};
+const HDR={};function hdri(n){if(!HDR[n])HDR[n]=import('./js/hdri/'+n+'.exr.js').then(m=>new EXRLoader().loadAsync(m.default)).then(t=>{t.mapping=THREE.EquirectangularReflectionMapping;const e=pmrem.fromEquirectangular(t).texture;t.dispose();return e;}).catch(()=>null);return HDR[n];}
+let envK='studio';
+function setEnv(k){envK=k;const e=ENVS[k];hdri(e[5]).then(t=>{if(t&&envK===k){scene.environment=t;if(window.__cg&&window.__cg.invalidate)window.__cg.invalidate();}});scene.background=grad(e[1],e[2]);ground.material.color.setHex(e[3]);renderer.toneMappingExposure=e[4]*(+document.getElementById('exp').value);scene.fog=new THREE.Fog(new THREE.Color(e[1]).lerp(new THREE.Color(e[2]),.18),4,26);
+  document.querySelectorAll('#envs .chip').forEach(c=>c.classList.toggle('on',c.dataset.k===k));}
+let lrot=0;function placeLights(){const r=4.5;key.position.set(Math.cos(lrot+.7)*r,5,Math.sin(lrot+.7)*-r);rimL.position.set(Math.cos(lrot+3.6)*r,2.4,Math.sin(lrot+3.6)*-r);fillL.position.set(Math.cos(lrot-.9)*r,1.6,Math.sin(lrot-.9)*-r);}
+placeLights();
+
+/* ---------------- texture di supporto ---------------- */
+function noiseNormal(seed,scale){const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d');const d=g.createImageData(512,512);let s=seed;const r=()=>(s=(s*16807)%2147483647)/2147483647;
+  for(let i=0;i<512*512;i++){const a=r()*6.283,m=r()*scale;d.data[i*4]=128+Math.cos(a)*m*127;d.data[i*4+1]=128+Math.sin(a)*m*127;d.data[i*4+2]=255;d.data[i*4+3]=255;}g.putImageData(d,0,0);
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(12,12);return t;}
+const FLAKE=noiseNormal(7,.9),GRAIN=noiseNormal(3,.5);GRAIN.repeat.set(5,5);
+
+/* ---------------- stato ---------------- */
+let model=null,cur=null,parts=new Map(),selected=null,hidden=new Set(),decals=[],lastDecal=null;
+const loader=new GLTFLoader();loader.setMeshoptDecoder(MeshoptDecoder);
+
+function finishParams(f){return {gloss:{metalness:0,roughness:.28,clearcoat:1,clearcoatRoughness:.03},metallic:{metalness:.55,roughness:.35,clearcoat:1,clearcoatRoughness:.03,normalMap:FLAKE,normalScale:new THREE.Vector2(.08,.08)},
+  candy:{metalness:.85,roughness:.2,clearcoat:1,clearcoatRoughness:.015,normalMap:FLAKE,normalScale:new THREE.Vector2(.06,.06)},pearl:{metalness:.25,roughness:.3,clearcoat:1,iridescence:1,iridescenceIOR:1.5,iridescenceThicknessRange:[180,520]},
+  flake:{metalness:.75,roughness:.36,clearcoat:1,clearcoatRoughness:.02,normalMap:FLAKE,normalScale:new THREE.Vector2(.5,.5)},matte:{metalness:.04,roughness:.86},satin:{metalness:.15,roughness:.5,clearcoat:.3,clearcoatRoughness:.4},
+  chrome:{metalness:1,roughness:.04},blackchrome:{metalness:1,roughness:.08},brushed:{metalness:1,roughness:.3},polished:{metalness:1,roughness:.12},titanium:{metalness:1,roughness:.2,iridescence:1,iridescenceIOR:2.1,iridescenceThicknessRange:[260,900]},
+  ceramic:{metalness:.15,roughness:.6,clearcoat:.15},wrinkle:{metalness:.05,roughness:.9,normalMap:GRAIN,normalScale:new THREE.Vector2(.9,.9)},leather:{metalness:0,roughness:.5,clearcoat:.2,clearcoatRoughness:.5,sheen:.3,normalMap:GRAIN,normalScale:new THREE.Vector2(.4,.4)}}[f]||{};}
+
+function register(root){parts=new Map();root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.receiveShadow=true;
+  for(const mm of (Array.isArray(o.material)?o.material:[o.material]))for(const k of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap'])if(mm[k]){mm[k].anisotropy=MAXANI;mm[k].needsUpdate=true;}const mats=Array.isArray(o.material)?o.material:[o.material];
+  mats.forEach((m,i)=>{if(/miror|mirror/i.test(m.name||'')){const mm=new THREE.MeshPhysicalMaterial({name:m.name,color:0xe9ecef,metalness:1,roughness:.015});if(Array.isArray(o.material))o.material[i]=mm;else o.material=mm;m=mm;}const name=m.name||('materiale '+parts.size);if(!parts.has(name))parts.set(name,{name,orig:m,cur:m,meshes:[],cat:catOf(name),color:'#'+(m.color?m.color.getHexString():'888888'),finish:'orig'});parts.get(name).meshes.push([o,i]);});});}
+function setPartMat(p,m){p.cur=m;for(const [o,i] of p.meshes){if(Array.isArray(o.material))o.material[i]=m;else o.material=m;}}
+function repaint(p,color,finish){p.color=color;p.finish=finish;
+  if(finish==='orig'&&color==='#'+p.orig.color?.getHexString?.()){setPartMat(p,p.orig);return;}
+  const o=p.orig;const m=new THREE.MeshPhysicalMaterial({name:o.name,map:null,normalMap:o.normalMap||null,aoMap:o.aoMap||null,transparent:o.transparent,opacity:o.opacity,side:o.side,alphaTest:o.alphaTest,
+    metalness:o.metalness??0,roughness:o.roughness??.5,metalnessMap:o.metalnessMap||null,roughnessMap:o.roughnessMap||null});
+  // conserva la texture solo se il pezzo ha dettagli (decalcomanie/scritte): la tinta la moltiplica
+  if(o.map && finish==='orig') m.map=o.map;
+  m.color.set(color);if(finish!=='orig'){m.metalnessMap=null;m.roughnessMap=null;Object.assign(m,finishParams(finish));if(!finishParams(finish).normalMap)m.normalMap=o.normalMap||null;}
+  m.needsUpdate=true;setPartMat(p,m);}
+
+/* ---------------- caricamento ---------------- */
+function loadScript(src){return new Promise((res,rej)=>{const sc=document.createElement('script');sc.src=src;sc.onload=res;sc.onerror=rej;document.head.appendChild(sc);});}
+const PARTCACHE={};
+/* file GLB riconosciuto dal contenuto (intestazione «glTF»), non dal tipo dichiarato dal server: il programma desktop non dichiara il tipo dei .glb */
+const isGlb=b=>b&&b.byteLength>12&&new DataView(b).getUint32(0,true)===0x46546C67;
+async function tauriGlb(dir,id){const T=window.__TAURI__;if(!(T&&T.core&&T.core.invoke))return null;try{const b=await T.core.invoke('leggi_glb',{cartella:dir,nome:id});const ab=b instanceof ArrayBuffer?b:(b&&b.buffer?b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength):(Array.isArray(b)?new Uint8Array(b).buffer:null));return isGlb(ab)?ab:null;}catch(e){console.warn('lettura diretta',dir,id,e);return null;}}
+async function partBuffer(id){
+  {const b=await tauriGlb('parts',id);if(b)return b;}
+  try{const r=await fetch('parts/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}
+  window.__GLB=window.__GLB||{};const k='p_'+id;if(!window.__GLB[k])await loadScript('parts/'+id+'.js');
+  const bin=atob(window.__GLB[k]);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[k];return u.buffer;}
+window.__loadPart=id=>loadPart(id);
+async function loadPart(id){if(!PARTCACHE[id]){const buf=await partBuffer(id);const g=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));PARTCACHE[id]=g.scene;}return PARTCACHE[id];}
+async function modelBuffer(id){
+  {const b=await tauriGlb('models',id);if(b)return b;}
+  try{const r=await fetch('models/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}
+  if(!(window.__GLB&&window.__GLB[id])){document.getElementById('loadB').style.width='40%';await loadScript('models/'+id+'.js');}
+  const b64=window.__GLB[id];const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[id];document.getElementById('loadB').style.width='90%';return u.buffer;}
+function frame(root){const box=new THREE.Box3().setFromObject(root);const s=box.getSize(new THREE.Vector3());
+  const len=Math.max(s.x,s.z);const k=2.25/len;root.scale.multiplyScalar(k);box.setFromObject(root);const c=box.getCenter(new THREE.Vector3());
+  root.position.x-=c.x;root.position.z-=c.z;root.position.y-=box.min.y;box.setFromObject(root);
+  const sz=box.getSize(new THREE.Vector3());const along=sz.x>sz.z?'x':'z';return {h:sz.y,along};}
+let HERO=[2.8,1.1,-3.2];
+async function loadModel(m,url){
+  const T0=performance.now(),TM={};const L=document.getElementById('load');L.style.display='flex';document.getElementById('loadT').textContent='Caricamento '+(m?m.n:'modello')+'…';
+  if(model){scene.remove(model);decals.forEach(d=>d.parent&&d.parent.remove(d));decals=[];}
+  let gl;
+  try{
+  if(m&&!url.startsWith('blob:')){const buf=await modelBuffer(m.id);gl=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));}
+  else gl=await new Promise((res,rej)=>loader.load(url,res,e=>{if(e.total)document.getElementById('loadB').style.width=(e.loaded/e.total*100)+'%';},rej));
+  }catch(err){console.error('caricamento modello',err);document.getElementById('loadT').textContent='Impossibile caricare '+(m?m.n:'il modello')+'. Riprova o scegli un altro modello dalla scheda Modello.';setTimeout(()=>{L.style.display='none';},6000);if(model)scene.add(model);return;}
+  TM.file=Math.round(performance.now()-T0);model=gl.scene;const f=frame(model);
+  // orienta la moto lungo l'asse X
+  if(m&&m.flip)model.rotation.y+=Math.PI;
+  if(f.along==='z'||(m&&m.flip)){if(f.along==='z')model.rotation.y+=Math.PI/2;const b=new THREE.Box3().setFromObject(model);const c=b.getCenter(new THREE.Vector3());model.position.x-=c.x;model.position.z-=c.z;}
+  OF&&OF.reset();smoothModel(model);scene.add(model);try{STK.presplitScan(model);}catch(e){console.warn('zone',e);}register(model);invalidate();cur=m;hidden.clear();selected=null;
+  controls.target.set(0,f.h*.45,0);camera.position.set(...HERO);controls.update();
+  TM.prep=Math.round(performance.now()-T0);buildParts();renderInfo();renderSheet();
+  // materiali preparati prima di mostrare la moto: niente scatti al primo movimento
+  try{document.getElementById('loadT').textContent='Preparazione dei materiali…';if(renderer.compileAsync){const rt0=renderer.getRenderTarget();renderer.setRenderTarget(composer.readBuffer);try{await renderer.compileAsync(scene,camera);}finally{renderer.setRenderTarget(rt0);}}}catch(e){}
+  TM.shader=Math.round(performance.now()-T0);window.__loadT=TM;console.info('caricamento',m?m.id:'glb',TM);shadowDirty=true;L.style.display='none';document.getElementById('loadB').style.width='0';if(window.CFG){CFG.reset();setTimeout(()=>CFG.fitAll(),50);}setTimeout(()=>{try{STK.buildIndex(model,()=>{});}catch(e){}},120);
+}
+
+function smoothModel(root){const ang=35*Math.PI/180;root.traverse(o=>{if(!o.isMesh||o.userData.smoothed||o.isSkinnedMesh)return;for(let p=o.parent;p;p=p.parent)if(p.userData&&p.userData.smoothed){o.userData.smoothed=1;return;} /* normali già calcolate nel file (pre-elaborazione) */const g=o.geometry;
+  if(!g.attributes.normal||g.attributes.position.count>400000)return;try{const ng=toCreasedNormals(g,ang);o.geometry=ng;g.dispose();o.userData.smoothed=1;}catch(e){}});}
+/* ---------------- UI ---------------- */
+const $=id=>document.getElementById(id);
+function showTab(t){document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));}
+$('tabs').onclick=e=>{if(e.target.dataset.t)showTab(e.target.dataset.t);};
+$('market').innerHTML=marketHTML();renderPdfs();
+{const sp=$('splash');let seen=false;try{seen=sessionStorage.getItem('cg_seen')==='1'}catch(e){}if(!seen)sp.classList.add('on');
+ $('splashGo').onclick=()=>{sp.classList.remove('on');try{sessionStorage.setItem('cg_seen','1')}catch(e){}};$('bHome').onclick=()=>sp.classList.add('on');}
+MODELS.forEach(m=>{const d=document.createElement('div');d.className='mcard';d.dataset.id=m.id;d.innerHTML=`<b>${m.n}</b><i>${m.tri} tri</i><span>${m.y} · modello di ${m.a}</span>`;d.onclick=()=>{document.querySelectorAll('.mcard').forEach(x=>x.classList.toggle('on',x===d));loadModel(m,'models/'+m.id+'.glb');};$('models').appendChild(d);});
+for(const k in ENVS){const c=document.createElement('button');c.className='chip';c.dataset.k=k;c.textContent=ENVS[k][0];c.onclick=()=>setEnv(k);$('envs').appendChild(c);}
+$('exp').oninput=()=>setEnv(envK);$('lrot').oninput=e=>{lrot=+e.target.value;placeLights();};
+$('sFinish').innerHTML=FIN.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+SW.forEach(([n,c,f])=>{const b=document.createElement('button');b.title=n;b.style.background=`radial-gradient(circle at 35% 30%,#ffffff55,transparent 45%),${c}`;b.onclick=()=>{if(!selected)return;repaint(parts.get(selected),c,f);syncSel();buildParts();};$('swatch').appendChild(b);});
+function buildParts(){const box=$('plist');box.innerHTML='';const groups={};for(const p of parts.values())(groups[p.cat]=groups[p.cat]||[]).push(p);
+  const order=CATS.map(c=>c[0]).concat(['Altri pezzi']);
+  for(const g of order){if(!groups[g])continue;const h=document.createElement('div');h.className='group';h.textContent=g+' ('+groups[g].length+')';box.appendChild(h);const l=document.createElement('div');l.className='plist';
+    groups[g].forEach(p=>{const b=document.createElement('button');b.className=p.name===selected?'on':'';b.innerHTML=`<span class="dot" style="background:${p.color}"></span>${nice(p.name)}${hidden.has(p.name)?' · nascosto':''}`;b.onclick=()=>select(p.name);l.appendChild(b);});box.appendChild(l);}
+  const body=bodyParts();$('bodyNote').textContent=body.length?('Carrozzeria di questo modello: '+body.map(p=>nice(p.name)).join(', ')):'';}
+function bodyParts(){const list=(cur&&cur.body)||[];return [...parts.values()].filter(p=>list.includes(p.name)||p.cat==='Carrozzeria e verniciatura');}
+function syncSel(){const p=parts.get(selected);if(!p)return;$('selName').textContent=nice(p.name);$('selGroup').textContent=p.cat;$('sColor').value=p.color;$('sFinish').value=p.finish;$('sHide').textContent=hidden.has(p.name)?'Mostra':'Nascondi';}
+let flash=null;
+function select(name){selected=name;syncSel();buildParts();if(window.CFG&&(!CFG.sel||CFG.sel.name!==name))CFG.selectPart(name);}
+$('sColor').onchange=()=>{if(!parts.get(selected))return;CFG.paintPart(selected,$('sColor').value,$('sFinish').value==='orig'?'gloss':$('sFinish').value);};
+$('sFinish').onchange=()=>{if(!parts.get(selected))return;CFG.paintPart(selected,$('sColor').value,$('sFinish').value);};
+$('sReset').onclick=()=>{if(parts.get(selected))CFG.resetPart(selected);};
+$('sHide').onclick=()=>{if(parts.get(selected))CFG.hidePart(selected,!hidden.has(selected));};
+$('sShow').onclick=()=>{hidden.clear();for(const p of parts.values())p.meshes.forEach(([o])=>o.visible=true);buildParts();};
+$('bodyAll').onclick=()=>{const c=$('sColor').value,f=$('sFinish').value==='orig'?'candy':$('sFinish').value;CFG.paintMany(bodyParts(),c,f,'colore carrozzeria');};
+function renderInfo(){if(!cur){$('info').innerHTML='<div class="t">Modello importato</div>';return;}$('info').innerHTML=`<div class="t">${cur.n}</div><div class="s">Modello 3D di ${cur.a} · CC BY 4.0 · Sketchfab</div>`;}
+function renderTech(){const sel=$('techFam');if(!sel.options.length){sel.innerHTML='<option value="">Modello attivo</option>'+Object.keys(FAMIGLIE).map(k=>`<option>${k}</option>`).join('');sel.onchange=renderTech;$('techQ').oninput=renderTech;}
+  const d=sel.value?FAMIGLIE[sel.value]:(cur&&TECH[cur.id]);const q=$('techQ').value.trim().replace(/[.*+?^${}()|[\]\\]/g,'');$('tech').innerHTML=techHTML(d,q||null);}
+async function renderPdfs(){let h='';try{const r=await fetch('manuali/indice.json',{cache:'no-store'});if(r.ok){const L=await r.json();const pc=!!(window.__TAURI__);h=L.map(m=>`<div class="pdf"><div><b>${m.t}</b><div class="note">${m.d}</div></div>${pc?`<a class="btn sm pri" href="manuali/${m.f}" target="_blank">Apri PDF</a>`:'<span class="note">Solo nel programma per PC</span>'}</div>`).join('');}}catch(e){}
+  if(!h)h='<div class="note">I service manual PDF di proprietà dell\'utente sono inclusi solo nella versione per PC (protetti da diritto d\'autore H-D, non ridistribuibili online).</div>';
+  h+=MANUALI_UFF.map(m=>`<div class="note">↗ <a href="${m[1]}" target="_blank" rel="noopener">${m[0]}</a></div>`).join('');$('pdfs').innerHTML=h;}
+window.__techFor=k=>cur&&TECH[cur.id];
+function renderSheet(){renderTech();const s=cur&&SPECS[cur.id];$('datT').textContent=s?s.t:'Scheda tecnica';$('spec').innerHTML=s?s.r.map(r=>`<tr><th>${r[0]}</th><td>${r[1]}</td></tr>`).join(''):'';$('specSrc').textContent=s?('Fonte: '+s.s):'';
+  const mm=cur&&MAN[cur.brand];$('man').innerHTML=mm?`<a href="${mm[1]}" target="_blank" rel="noopener">${mm[0]}</a><div class="note">Scaricabile gratuitamente dal sito ufficiale del costruttore.</div>`:'';
+  $('credit').innerHTML=cur?`«${cur.n}» di <b>${cur.a}</b>, <a href="${cur.u}" target="_blank" rel="noopener">pagina del modello su Sketchfab</a>, licenza <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Modello ottimizzato per il web (compressione geometria e texture). Marchi e design appartengono ai rispettivi titolari.`:'';}
+
+/* ---------------- selezione con clic ---------------- */
+const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();let down=null;
+function hit(e){const r=renderer.domElement.getBoundingClientRect();ptr.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ptr,camera);
+  const objs=[model,...scene.children.filter(c=>c.userData.acc||c.userData.handleOf)].filter(Boolean);if(!objs.length)return null;
+  const hs=ray.intersectObjects(objs,true).filter(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return !h.object.userData.decal;});return hs[0]||null;}
+function matName(h){if(h.object.userData.accPart||h.object.userData.handleOf)return null;const m=Array.isArray(h.object.material)?h.object.material[h.face.materialIndex]:h.object.material;for(const p of parts.values())if(p.cur===m||p.orig===m)return p.name;return null;}
+renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;down=null;if(OF.tc.dragging||OF.tc.axis)return;const h=hit(e);
+  const act=document.querySelector('#tabs .on').dataset.t;if(!placing&&OF.handleClick(h,act==='edit'?'edit':'cfg'))return;
+  if(placing){if(h)placeDecal(h);return;}if(!h){CFG.select(null);return;}
+  if(h.object.userData.accPart){CFG.selectAcc(h.object.userData.accPart);return;}const n=matName(h);if(n){selected=n;syncSel();}CFG.selectAt(h,n);});
+let hovT=0;renderer.domElement.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType!=='mouse')return;const t=performance.now();if(t-hovT<60)return;hovT=t;const h=hit(e);const a=h&&h.object.userData.accPart;const n=h&&!a&&matName(h);renderer.domElement.style.cursor=(n||a)?(placing?'crosshair':'pointer'):'grab';const ml=$('hov');if(ml)ml.textContent=a?(a.userData.accName||'Accessorio'):n?(nice(n)+' — '+parts.get(n).cat):'';});
+
+/* ---------------- aerografia: decalcomanie proiettate ---------------- */
+let gfx='flames',userImg=null,placing=false;
+const GFX=[['flames','Fiamme'],['tribal','Fiamme tribali'],['pin','Pinstriping'],['scallop','Scallops'],['skullfree','Stella'],['stripes','Racing stripes'],['user','Tua grafica']];
+GFX.forEach(([k,l])=>{const c=document.createElement('button');c.className='chip'+(k===gfx?' on':'');c.textContent=l;c.onclick=()=>{if(k==='user'&&!userImg){$('fImg').click();return;}gfx=k;document.querySelectorAll('#gfx .chip').forEach(x=>x.classList.toggle('on',x===c));};$('gfx').appendChild(c);});
+function gfxCanvas(){const W=2048,H=1024,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');const c1=$('g1').value,c2=$('g2').value;
+  const N=+$('gN').value,L=+$('gL').value,BW=+$('gW').value*2,GR=$('gG').checked;
+  if(gfx==='user'&&userImg){c.width=userImg.width;c.height=userImg.height;g.drawImage(userImg,0,0);return c;}
+  const fillGrad=()=>{if(!GR)return c1;const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,c2);gr.addColorStop(.28,c1);gr.addColorStop(1,c1);return gr;};
+  const stroke=()=>{if(BW>0){g.lineJoin='round';g.lineWidth=BW;g.strokeStyle=c2;g.stroke();}};
+  if(gfx==='flames'||gfx==='tribal'){const tg=[];for(let i=0;i<N;i++){const y=(i+.5)/N;const len=L*(.62+.38*Math.abs(Math.sin(i*2.4+1)));tg.push([len,y*.88+.06]);}
+    g.beginPath();g.moveTo(0,H*.04);let px=0,py=H*.04;tg.forEach((t,i)=>{const tx=t[0]*W,ty=t[1]*H;const vy=i<tg.length-1?(ty+tg[i+1][1]*H)/2:H*.96;const vx=tx*.28;const sw=H/N*.35;
+      if(gfx==='flames'){g.bezierCurveTo(px+tx*.35,py-sw*.4,tx*.82,ty-sw*.9,tx,ty);g.bezierCurveTo(tx*.8,ty+sw*.35,vx+sw,vy-sw*.3,vx,vy);}else{g.lineTo(tx*.55,py+sw*.5);g.lineTo(tx,ty);g.lineTo(vx+sw*1.5,vy-sw*.2);g.lineTo(vx,vy);}px=vx;py=vy;});
+    g.lineTo(0,H*.96);g.closePath();g.fillStyle=fillGrad();g.fill();stroke();}
+  else if(gfx==='pin'){g.lineCap='round';const n=Math.max(1,Math.round(N/2));for(let k=0;k<n;k++){const o=k*(H*.06);const col=k%2?c2:c1;g.strokeStyle=col;g.lineWidth=Math.max(4,BW||8)*(k%2?.6:1);const ex=W*L;
+      g.beginPath();g.moveTo(W*.04,H/2-H*.18-o);g.bezierCurveTo(ex*.4,H/2-H*.26-o,ex*.75,H/2-H*.1,ex,H/2);g.bezierCurveTo(ex*.75,H/2+H*.1,ex*.4,H/2+H*.26+o,W*.04,H/2+H*.18+o);g.stroke();
+      g.beginPath();g.arc(W*.25,H/2,H*.08+o/2,0,Math.PI*1.7);g.stroke();g.beginPath();g.moveTo(ex,H/2);g.quadraticCurveTo(ex+W*.06,H/2-H*.12,ex+W*.04,H/2-H*.22);g.stroke();}}
+  else if(gfx==='scallop'){const n=Math.max(1,Math.min(N,7));for(let k=0;k<n;k++){const y=H*((k+.5)/n),len=W*L*(1-Math.abs(k-(n-1)/2)/n*.6),hw=H/n*.36;g.beginPath();g.moveTo(0,y-hw);g.bezierCurveTo(len*.4,y-hw,len*.8,y-hw*.25,len,y);g.bezierCurveTo(len*.8,y+hw*.25,len*.4,y+hw,0,y+hw);g.closePath();g.fillStyle=fillGrad();g.fill();stroke();}}
+  else if(gfx==='skullfree'){c.width=c.height=1024;g.translate(512,512);g.beginPath();const pts=Math.max(4,N);for(let i=0;i<pts*2;i++){const r=i%2?470*(.25+.35*(1-L)):470,a=i/(pts*2)*Math.PI*2-Math.PI/2;g.lineTo(Math.cos(a)*r,Math.sin(a)*r);}g.closePath();g.fillStyle=GR?(()=>{const gr=g.createRadialGradient(0,0,20,0,0,470);gr.addColorStop(0,c2);gr.addColorStop(.6,c1);gr.addColorStop(1,c1);return gr;})():c1;g.fill();stroke();}
+  else if(gfx==='stripes'){const n=Math.max(1,Math.min(N,9));const tot=.9,w=tot/(n*1.6);for(let k=0;k<n;k++){const y=.05+k*w*1.6;g.fillStyle=k%2?c2:c1;g.fillRect(0,H*y,W*L,H*w);}if(BW>0){g.fillStyle=c2;g.fillRect(0,H*.03,W*L,BW/2);g.fillRect(0,H*.97-BW/2,W*L,BW/2);}}
+  return c;}
+function decalMat(tex){return new THREE.MeshPhysicalMaterial({map:tex,transparent:true,depthTest:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,roughness:$('gC').checked?.18:.6,clearcoat:$('gC').checked?1:0,clearcoatRoughness:.02});}
+function decalSize(tex){const asp=tex.image.width/tex.image.height*(+$('gA').value);const s=+$('gS').value;return new THREE.Vector3(s,s/asp,Math.max(.15,s*.8));}
+function placeDecal(h){const tex=new THREE.CanvasTexture(gfxCanvas());tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=MAXANI;const size=decalSize(tex);
+  const n=h.face.normal.clone().transformDirection(h.object.matrixWorld);const helper=new THREE.Object3D();helper.position.copy(h.point);helper.lookAt(h.point.clone().add(n));helper.rotateZ(+$('gR').value);
+  const d=new THREE.Mesh(new DecalGeometry(h.object,h.point,helper.rotation,size),decalMat(tex));d.userData.decal=true;d.renderOrder=2;scene.add(d);decals.push(d);
+  lastDecal={h,n,size,tex,meshes:[d]};placing=false;$('decalHint').style.display='none';$('bPlace').classList.remove('on');invalidate();}
+function refreshDecal(){if(!lastDecal)return;const tex=new THREE.CanvasTexture(gfxCanvas());tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=MAXANI;const size=decalSize(tex);
+  const h=lastDecal.h;const helper=new THREE.Object3D();helper.position.copy(h.point);helper.lookAt(h.point.clone().add(lastDecal.n));helper.rotateZ(+$('gR').value);
+  for(const d of lastDecal.meshes){d.geometry.dispose();d.geometry=new DecalGeometry(h.object,h.point,helper.rotation,size);d.material.map&&d.material.map.dispose();d.material.dispose();d.material=decalMat(tex);}
+  lastDecal.tex=tex;lastDecal.size=size;invalidate();}
+let rdT=null;['g1','g2','gS','gA','gN','gL','gW','gG','gC','gR'].forEach(id=>{$(id).addEventListener('input',()=>{clearTimeout(rdT);rdT=setTimeout(refreshDecal,40);});$(id).addEventListener('change',()=>{clearTimeout(rdT);rdT=setTimeout(refreshDecal,40);});});
+$('bPlace').onclick=()=>{placing=!placing;$('bPlace').classList.toggle('on',placing);$('decalHint').style.display=placing?'block':'none';};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&placing){placing=false;$('decalHint').style.display='none';$('bPlace').classList.remove('on');}});
+$('bUndo').onclick=()=>{const d=decals.pop();if(d){scene.remove(d);d.geometry.dispose();}};
+$('bMirror').onclick=()=>{if(!lastDecal||!model)return;const p=lastDecal.h.point.clone();const dir=new THREE.Vector3(0,0,p.z>0?-1:1);p.z=-p.z;
+  const r=new THREE.Raycaster(p.clone().addScaledVector(dir,-1),dir);const hs=r.intersectObject(model,true).filter(x=>x.object.visible);if(!hs.length)return;const hh=hs[0];
+  const n=hh.face.normal.clone().transformDirection(hh.object.matrixWorld);const helper=new THREE.Object3D();helper.position.copy(hh.point);helper.lookAt(hh.point.clone().add(n));helper.rotateZ(-(+$('gR').value));
+  const tex=lastDecal.tex.clone();tex.wrapS=THREE.RepeatWrapping;tex.repeat.x=-1;tex.offset.x=1;tex.needsUpdate=true;
+  const d=new THREE.Mesh(new DecalGeometry(hh.object,hh.point,helper.rotation,lastDecal.size),decalMat(tex));d.userData.decal=true;d.renderOrder=2;scene.add(d);decals.push(d);invalidate();};
+$('bImg').onclick=()=>$('fImg').click();
+$('fImg').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{userImg=im;gfx='user';document.querySelectorAll('#gfx .chip').forEach(x=>x.classList.toggle('on',x.textContent==='Tua grafica'));};im.src=rd.result;};rd.readAsDataURL(f);};
+
+/* ---------------- geometria ---------------- */
+function trail(){const r=+$('gRake').value*Math.PI/180,o=+$('gOff').value,R=+$('gRad').value;$('oRake').textContent=$('gRake').value+'°';$('oOff').textContent=o;$('oRad').textContent=R;
+  const t=(R*Math.sin(r)-o)/Math.cos(r);const cls=t<80?['warn','sterzo rapido, instabile ad alta velocità']:t<=150?['ok','campo tipico, stabile']:['warn','molto stabile, sterzo pesante in manovra'];
+  const el=$('trail');el.className='card '+cls[0];el.innerHTML=`<b>Avancorsa ${Math.round(t)} mm</b>${cls[1]}. Formula: t = (R·sin ε − d) / cos ε. Valore indicativo, non sostituisce una verifica tecnica.`;}
+['gRake','gOff','gRad'].forEach(i=>$(i).oninput=trail);trail();
+
+/* ---------------- camere, argilla, 4K ---------------- */
+const CAMS={'Hero ¾':[2.8,1.1,-3.2],'Lato sinistro':[0,.75,-4.3],'Lato destro':[0,.75,4.3],'Fronte':[4.2,.95,0],'Retro':[-4.2,1,0],'Dall\'alto':[.3,4.5,-.6]};
+let camA=null;function flyTo(pos,tgt){camA={f:camera.position.clone(),t:pos.clone(),tf:controls.target.clone(),tt:(tgt||controls.target).clone(),k:0};}
+for(const k in CAMS){const op=document.createElement('option');op.value=k;op.textContent=k;$('camSel').appendChild(op);}
+$('camSel').onchange=e=>{const k=e.target.value;if(!k)return;const M=model&&new THREE.Box3().setFromObject(model);const c=M?M.getCenter(new THREE.Vector3()):controls.target.clone();flyTo(new THREE.Vector3(...CAMS[k]).add(new THREE.Vector3(c.x,0,c.z)),c);e.target.value='';};
+const tg=(id,fn)=>{const b=$(id);b.onclick=()=>{b.classList.toggle('on');fn(b.classList.contains('on'));};};
+tg('tRot',on=>controls.autoRotate=on);
+const clay=new THREE.MeshStandardMaterial({color:0xc4c5c9,roughness:.7});tg('tClay',on=>scene.overrideMaterial=on?clay:null);
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('.modal').classList.remove('on'));
+$('b4k').onclick=()=>{$('m4k').classList.add('on');$('m4kT').textContent='Rendering in corso (supersampling 8K → 4K)…';setTimeout(()=>{
+  const W=3840,H=2160,max=renderer.capabilities.maxRenderbufferSize||renderer.capabilities.maxTextureSize;const ss=(max>=W*2&&max>=H*2)?2:(max>=W*1.5?1.5:1);
+  const s0=renderer.getSize(new THREE.Vector2()),pr=renderer.getPixelRatio(),a=camera.aspect;
+  // inquadratura: animazione conclusa, niente contorno di selezione, moto intera dentro il 16:9 (con margine) mantenendo l'angolo scelto
+  if(camA){camera.position.copy(camA.t);controls.target.copy(camA.tt);camA=null;controls.update();}
+  const selKeep=CFG.outline.selectedObjects;CFG.outline.selectedObjects=[];const posKeep=camera.position.clone(),tgtKeep=controls.target.clone();
+  camera.aspect=W/H;camera.updateProjectionMatrix();
+  if(model){const B=new THREE.Box3();model.traverse(o=>{if(o.isMesh&&o.visible)B.expandByObject(o);});scene.traverse(o=>{if(o.userData&&o.userData.acc&&o.parent)B.expandByObject(o);});
+   const fits=()=>{camera.updateMatrixWorld();let ok=true;for(let i=0;i<8;i++){const v=new THREE.Vector3(i&1?B.max.x:B.min.x,i&2?B.max.y:B.min.y,i&4?B.max.z:B.min.z).project(camera);if(Math.abs(v.x)>.94||Math.abs(v.y)>.92||v.z>1)ok=false;}return ok;};
+   const ext=()=>{camera.updateMatrixWorld();let mx=0,my=0;for(let i=0;i<8;i++){const v=new THREE.Vector3(i&1?B.max.x:B.min.x,i&2?B.max.y:B.min.y,i&4?B.max.z:B.min.z).project(camera);mx=Math.max(mx,Math.abs(v.x));my=Math.max(my,Math.abs(v.y));}return Math.max(mx,my);};
+   if(!fits()||ext()<.7){const c=B.getCenter(new THREE.Vector3()),dir=camera.position.clone().sub(controls.target).normalize();controls.target.copy(c);let d=.6;camera.position.copy(c).addScaledVector(dir,d);camera.lookAt(c);for(let k=0;k<120&&!fits();k++){d*=1.03;camera.position.copy(c).addScaledVector(dir,d);camera.lookAt(c);}}}
+  renderer.setPixelRatio(1);renderer.setSize(W*ss,H*ss,false);
+  rt.samples=0;composer.renderTarget1.samples=0;composer.renderTarget2.samples=0;composer.setPixelRatio(1);composer.setSize(W*ss,H*ss);renderer.shadowMap.needsUpdate=true;composer.render();
+  const out=document.createElement('canvas');out.width=W;out.height=H;const g=out.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(renderer.domElement,0,0,W,H);
+  camera.position.copy(posKeep);controls.target.copy(tgtKeep);camera.lookAt(tgtKeep);CFG.outline.selectedObjects=selKeep;
+  renderer.setPixelRatio(pr);renderer.setSize(s0.x,s0.y,false);camera.aspect=a;camera.updateProjectionMatrix();composer.renderTarget1.samples=Q().msaa;composer.renderTarget2.samples=Q().msaa;composer.setPixelRatio(pr);composer.setSize(s0.x,s0.y);
+  out.toBlob(b=>{$('img4k').src=URL.createObjectURL(b);$('m4kT').textContent=`Render 3840 × 2160 pronto (calcolato a ${W*ss} × ${H*ss})`;},'image/png');},60);};
+$('bImp').onclick=()=>$('fGlb').click();
+$('bInfo').onclick=()=>{$('infoCred').innerHTML=MODELS.map(m=>`<li>«${m.n}» di ${m.a} – <a href="${m.u}" target="_blank" rel="noopener">Sketchfab</a></li>`).join('')+'<li><b>Ricambi 3D reali</b></li>'+[...new Map(PARTS.map(p=>[p[5],p])).values()].map(p=>`<li>${p[0]==='sella_breakout'||p[4]==='Dakta.Grower.Nzl'?'Ricambi estratti dalla Breakout':'«'+p[1]+'»'} di ${p[4]} – <a href="${p[5]}" target="_blank" rel="noopener">Sketchfab</a></li>`).join('');$('mInfo').classList.add('on');};
+$('fGlb').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{loader.parse(rd.result,'',async gl=>{const u=URL.createObjectURL(new Blob([rd.result]));await loadModel(null,u);},err=>alert);};rd.readAsArrayBuffer(f);};
+
+function resize(){fullDPR=Q().dpr;const r=view.getBoundingClientRect();invalidate();renderer.setSize(r.width,r.height,false);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(r.width,r.height);camera.aspect=r.width/Math.max(1,r.height);camera.updateProjectionMatrix();}
+let needs=true,until=0,shadowDirty=true;
+/* ridisegno solo quando serve; le ombre si ricalcolano solo se cambia la scena, non quando si gira la camera */
+const invalidate=()=>{needs=true;until=performance.now()+1200;shadowDirty=true;};const invalidateCam=()=>{needs=true;until=performance.now()+400;};
+controls.addEventListener('change',invalidateCam);
+['click','input','change','keydown'].forEach(ev=>document.addEventListener(ev,invalidate,true));['pointerup','wheel','pointerdown'].forEach(ev=>document.addEventListener(ev,invalidateCam,true));
+let fullDPR=renderer.getPixelRatio(),lowT=null;function setDPR(d){if(Math.abs(renderer.getPixelRatio()-d)<.01)return;const r=view.getBoundingClientRect();renderer.setPixelRatio(d);composer.setPixelRatio(d);composer.setSize(r.width,r.height);invalidate();}
+controls.addEventListener('start',()=>{clearTimeout(lowT);setDPR(Math.min(Q().move,fullDPR));});controls.addEventListener('end',()=>{clearTimeout(lowT);lowT=setTimeout(()=>setDPR(fullDPR),300);});
+const toastEl=$('toast');let toastT=null;function toast(t){toastEl.textContent=t;toastEl.style.display='inline';clearTimeout(toastT);toastT=setTimeout(()=>toastEl.style.display='none',5000);}
+const OF=initOfficina({loadPart,scene,camera,renderer,controls,invalidate,$,nice,toast,finishParams,FIN,getModel:()=>model,getParts:()=>parts,
+  registerMesh:(m)=>{for(const p of parts.values())if(p.cur===m.material||p.orig===m.material){p.meshes.push([m,0]);return;}},
+  catOfMesh:(o)=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';}});
+OF.tc.addEventListener('dragging-changed',e=>{if(e.value)setDPR(Math.min(Q().move,fullDPR));else setDPR(fullDPR);});
+const mainEl=document.querySelector('main');
+const CFG=window.CFG=initConfig({scene,camera,controls,composer,renderer,invalidate,$,toast,nice,finishParams,FIN,SW,parts:()=>parts,hidden,setPartMat,repaint,bodyParts,getModel:()=>model,cur:()=>cur,tc:OF.tc,
+  registerMesh:(m)=>{for(const p of parts.values())if(p.cur===m.material||p.orig===m.material){p.meshes.push([m,0]);return;}},
+  thumbOf:OF.thumbOf,placeReal:it=>OF.placeItem(it),editObj:o=>{showTab('edit');openPanel('edit');OF.edit(o);},flyTo,
+  refreshParts:()=>{syncSel();buildParts();},onSelect:s=>{if(s.kind==='part'){selected=s.name;syncSel();}},
+  openPanel,togglePanel,activeTab:()=>document.querySelector('#tabs .on').dataset.t});
+function openPanel(t){mainEl.classList.remove('closed');$('qPanel').classList.add('on');if(t)showTab(t);}
+function togglePanel(){mainEl.classList.toggle('closed');$('qPanel').classList.toggle('on',!mainEl.classList.contains('closed'));setTimeout(()=>{resize();},30);}
+$('qPanel').classList.add('on');
+new ResizeObserver(resize).observe(view);resize();
+const clock=new THREE.Clock();let perfN=0,perfT=0;
+function applyTier(){const q=Q();fullDPR=q.dpr;rt.samples=q.msaa;composer.renderTarget1.samples=q.msaa;composer.renderTarget2.samples=q.msaa;if(key.shadow.map){key.shadow.map.dispose();key.shadow.map=null;}key.shadow.mapSize.set(q.shadow,q.shadow);setDPR(q.dpr);resize();shadowDirty=true;console.info('qualità grafica: livello',TIER,GPU);}
+(function loop(){const dt=Math.min(clock.getDelta(),.05);if(camA){camA.k=Math.min(1,camA.k+dt*1.6);const ee=1-Math.pow(1-camA.k,3);camera.position.lerpVectors(camA.f,camA.t,ee);if(camA.tt)controls.target.lerpVectors(camA.tf,camA.tt,ee);if(camA.k>=1)camA=null;}
+  if(camA||controls.autoRotate)invalidateCam();controls.update();if(needs||performance.now()<until){if(shadowDirty){renderer.shadowMap.needsUpdate=true;shadowDirty=false;}composer.render();needs=false;
+    // misura: se il disegno continuo resta sotto i 25 fotogrammi al secondo si scende di un livello di qualità
+    perfN++;perfT+=dt;if(perfN>=40){if(perfT/perfN>.04&&TIER>0&&!document.hidden){TIER--;applyTier();}perfN=0;perfT=0;}}else{perfN=0;perfT=0;}
+  requestAnimationFrame(loop);})();
+setEnv('studio');
+document.querySelector('.mcard').click();
+window.__composer=composer;window.__cg={OF,invalidate,loadModel,MODELS,parts:()=>parts,camera,setEnv,select,repaint,controls,scene,renderer,THREE,getModel:()=>model,catOfMesh:o=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';}};
+</script>
+<script>/* programma desktop: manuali installati e link esterni si aprono con le app di Windows */
+if(window.__TAURI__){document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const h=a.getAttribute('href')||'';
+ if(/^manuali\/[^\/]+\.pdf$/i.test(h)){e.preventDefault();window.__TAURI__.core.invoke('apri_manuale',{f:decodeURIComponent(h.slice(8))}).catch(x=>alert('Manuale: '+x));}
+ else if(/^https:\/\//i.test(h)){e.preventDefault();window.__TAURI__.core.invoke('apri_link',{url:h}).catch(()=>{});}},true);}
+</script>
+<script>/* barre orizzontali sempre raggiungibili: frecce, rotellina, tastiera */
+(function(){function wrap(el){if(!el||el.parentNode.classList.contains('hsw'))return;const w=document.createElement('div');w.className='hsw';el.parentNode.insertBefore(w,el);w.appendChild(el);
+ const L=document.createElement('button'),R=document.createElement('button');L.className='hsA l';R.className='hsA r';L.type=R.type='button';L.textContent='‹';R.textContent='›';L.title='Scorri a sinistra';R.title='Scorri a destra';w.appendChild(L);w.appendChild(R);
+ const upd=()=>{const m=el.scrollWidth-el.clientWidth;L.classList.toggle('on',el.scrollLeft>2);R.classList.toggle('on',m>2&&el.scrollLeft<m-2)};
+ L.onclick=()=>{el.scrollBy({left:-el.clientWidth*.7})};R.onclick=()=>{el.scrollBy({left:el.clientWidth*.7})};
+ el.addEventListener('wheel',e=>{if(el.scrollWidth<=el.clientWidth)return;const d=Math.abs(e.deltaY)>Math.abs(e.deltaX)?e.deltaY:e.deltaX;if(!d)return;e.preventDefault();el.scrollLeft+=d},{passive:false});
+ el.addEventListener('scroll',upd,{passive:true});new ResizeObserver(upd).observe(el);new MutationObserver(upd).observe(el,{childList:true,subtree:true});window.addEventListener('resize',upd);setTimeout(upd,300);setTimeout(upd,2000)}
+ function go(){['qbar','cbar','tabs'].forEach(id=>wrap(document.getElementById(id)))}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go()})();
+</script>
+<script>/* app per telefono: funziona anche offline (service worker) e scarica in sottofondo tutte le moto */
+if('serviceWorker' in navigator && !window.__TAURI__ && location.protocol==='https:'){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(r=>{const go=()=>{const w=r.active||navigator.serviceWorker.controller;w&&w.postMessage('tutto');};if(r.active)setTimeout(go,8000);else navigator.serviceWorker.ready.then(()=>setTimeout(go,8000));}).catch(e=>console.warn('sw',e));
+ navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.offline){const t=document.getElementById('toast');if(t){t.textContent='App pronta anche offline: '+e.data.offline+' file salvati sul telefono';}}});});}
+</script>
+</body>
+</html>
