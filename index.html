@@ -678,7 +678,8 @@ if(window.__TAURI__){document.addEventListener('click',e=>{const a=e.target.clos
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go()})();
 </script>
 <script>/* app per telefono: funziona anche offline (service worker) e scarica in sottofondo tutte le moto */
-if('serviceWorker' in navigator && !window.__TAURI__ && location.protocol==='https:'){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(r=>{const go=()=>{const w=r.active||navigator.serviceWorker.controller;w&&w.postMessage('tutto');};if(r.active)setTimeout(go,8000);else navigator.serviceWorker.ready.then(()=>setTimeout(go,8000));}).catch(e=>console.warn('sw',e));
+if('serviceWorker' in navigator && !window.__TAURI__ && location.protocol==='https:'){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(r=>{const go=()=>{const w=r.active||navigator.serviceWorker.controller;w&&w.postMessage('tutto');};if(r.active)setTimeout(go,30000);else navigator.serviceWorker.ready.then(()=>setTimeout(go,30000));}).catch(e=>console.warn('sw',e));
+ const hadSW=!!navigator.serviceWorker.controller;let rel=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadSW&&!rel){rel=true;location.reload();}});
  navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.offline){const t=document.getElementById('toast');if(t){t.textContent='App pronta anche offline: '+e.data.offline+' file salvati sul telefono';}}});});}
 </script>
 </body>
