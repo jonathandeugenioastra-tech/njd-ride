@@ -263,7 +263,7 @@ a{color:var(--acc2)}
     <div class="card warn"><b>Verniciatura e aerografia</b>Trasparenti 2K con isocianati: cabina aspirata, protezione respiratoria, guanti in nitrile, schede di sicurezza. In cabina valuta il rischio ATEX.</div>
     <div class="card"><b>Dopo ogni modifica</b>Coppie di serraggio con dinamometrica · cavi liberi a sterzo tutto girato · spurgo freni · luci e frecce · pressione pneumatici · eventuale rimappatura dopo scarico o filtro.</div>
   </section>
-  <div class="foot"><span>© 2026 <b>dott. Jonathan D'Eugenio</b> · Tutti i diritti riservati</span><span>v1.6.1</span></div>
+  <div class="foot"><span>© 2026 <b>dott. Jonathan D'Eugenio</b> · Tutti i diritti riservati</span><span>v1.6.5</span></div>
 </aside>
 <div id="stage">
 <div id="view">
@@ -292,7 +292,7 @@ a{color:var(--acc2)}
   <div class="cp">© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Marchi e design delle moto appartengono ai rispettivi titolari.</div>
 </div></div>
 <div class="modal" id="mInfo"><div class="box" style="max-width:720px">
-  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.6.1</b><button class="btn sm" data-close>Chiudi</button></div>
+  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.6.5</b><button class="btn sm" data-close>Chiudi</button></div>
   <p>© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Software, interfaccia, libreria accessori, consulente meccanico e testi sono opera dell'autore.</p>
   <h3>Modelli 3D di terzi (licenza CC BY 4.0)</h3>
   <ul class="note" id="infoCred"></ul>
@@ -342,6 +342,20 @@ const MODELS=[
  {id:'wlbobber',sep:1,n:'Harley-Davidson bobber militare',y:'storica',tri:'617k',a:'valerij1987',u:'https://sketchfab.com/3d-models/681f54f1e5f440c592b194a4d3caab28',brand:'hd'},
  {id:'chopperlok',sep:1,n:'Harley-Davidson chopper',y:'custom',tri:'1,15M',a:'ericvento62',u:'https://sketchfab.com/3d-models/6d8910cb05be4995959aa5c880e51e05',brand:'hd'},
  {id:'hd1910',sep:1,n:'Harley-Davidson d\'epoca (primi \'900)',y:'storica',tri:'198k',a:'mertzal',u:'https://sketchfab.com/3d-models/51769145b2d94059924248df7f995b77',brand:'hd'},
+ {id:'sp_rusik',sep:1,flip:1,n:'Harley-Davidson Sportster',y:'—',tri:'89k',a:'RusikBBK',u:'https://sketchfab.com/3d-models/ea00cf627ec24dea828601b28b56548f',brand:'hd'},
+ {id:'sp1200c',sep:1,n:'Harley-Davidson Sportster 1200 Custom',y:'—',tri:'665k',a:'polyNeast',u:'https://sketchfab.com/3d-models/b36bf3448c5241938021778ea0f313d1',brand:'hd'},
+ {id:'sp72',sep:1,n:'Harley-Davidson Sportster Seventy-Two',y:'2015',tri:'60k',a:'Alex.Ka.',u:'https://sketchfab.com/3d-models/15e67a3076494bb99ba7504c9913ceb5',brand:'hd'},
+ {id:'xr1200x',sep:1,n:'Harley-Davidson Sportster XR1200X',y:'—',tri:'2,8M',a:'TimoShch',u:'https://sketchfab.com/3d-models/a46108178fe04beab93efb41088eedf4',brand:'hd'},
+ {id:'nightrod',sep:1,flip:1,n:'Harley-Davidson V-Rod Night Rod',y:'—',tri:'27k',a:'EmanuelRestrepoVelez',u:'https://sketchfab.com/3d-models/e61fc30b0e2d4920bc2ba45127448204',brand:'hd'},
+ {id:'vrod',sep:1,flip:1,n:'Harley-Davidson V-Rod',y:'2001-2017',tri:'286k',a:'szymonpasterczyk',u:'https://sketchfab.com/3d-models/9b4a7e73a18243dcacb6c7594a8821b0',brand:'hd'},
+ {id:'fatboy15',sep:1,n:'Harley-Davidson Softail Fat Boy',y:'2015',tri:'1,5M',a:'niev',u:'https://sketchfab.com/3d-models/d5b19567697749eeaac3f07cee90eb70',brand:'hd'},
+ {id:'fatboyw',sep:1,flip:1,n:'Harley-Davidson Softail Fat Boy',y:'—',tri:'1,3M',a:'willymoral',u:'https://sketchfab.com/3d-models/26f0690a3f9c4a90a096d95913aa6971',brand:'hd'},
+ {id:'police',sep:1,n:'Harley-Davidson Road King Police',y:'—',tri:'658k',a:'comrade1280',u:'https://sketchfab.com/3d-models/79dc00298bf449d7bcfdf6eb32bd15ac',brand:'hd'},
+ {id:'hd_moto',sep:1,n:'Harley-Davidson Sportster custom',y:'—',tri:'51k',a:'UgurYksk',u:'https://sketchfab.com/3d-models/0d5c5971d3204e88b415643163b5516a',brand:'hd'},
+ {id:'u1200',sep:1,n:'Harley-Davidson U 1200',y:'1946',tri:'754k',a:'mixmamo.studio',u:'https://sketchfab.com/3d-models/944f3d736c9a45988ed7c0aedddff379',brand:'hd'},
+ {id:'buell',sep:1,flip:1,n:'Buell XB',y:'—',tri:'312k',a:'cristobalrodbar',u:'https://sketchfab.com/3d-models/28ce1a8e77f145b79f3e8317dd836299',brand:'buell'},
+ {id:'buellxb',sep:1,n:'Buell XB47 concept',y:'concept',tri:'15k',a:'Adityakm',u:'https://sketchfab.com/3d-models/1f9cdf58cc784d31bab5a1718d58960c',brand:'buell'},
+ {id:'chief48',sep:1,n:'Indian Chief Black Hawk',y:'1948',tri:'79k',a:'topfrank2013',u:'https://sketchfab.com/3d-models/d5db61785c4043a094908fe9deedcda5',brand:'indian'},
 ];
 const SPECS={
  breakout:{t:'Breakout (gamma 2025, dati ufficiali)',r:[['Motore','Milwaukee-Eight 117 Custom'],['Potenza / coppia','104 HP @ 4800 giri · 126 ft-lb'],['Inclinazione cannotto','34°'],['Avancorsa','145 mm'],['Interasse','1.695 mm'],['Pneumatici','130/60B21 – 240/40R18'],['Altezza sella','665 mm a vuoto'],['Peso','309 kg in ordine di marcia']],s:'harley-davidson.com, pagina modello Breakout 2025'},
@@ -420,11 +434,11 @@ function finishParams(f){return {gloss:{metalness:0,roughness:.28,clearcoat:1,cl
 
 /* modelli con molti pezzi che condividono lo stesso materiale: ogni pezzo diventa selezionabile e verniciabile a sé */
 function splitMats(root){const ms=[],use=new Map();root.traverse(o=>{if(o.isMesh&&!Array.isArray(o.material)){ms.push(o);use.set(o.material,(use.get(o.material)||0)+1);}});
-  if(ms.length<15)return;const used={};ms.forEach(o=>{if(use.get(o.material)<3)return;let nm=(o.name||o.parent&&o.parent.name||'pezzo').replace(/[_.]+/g,' ').replace(/\s+\d+$/,'').trim()||'pezzo';used[nm]=(used[nm]||0)+1;if(used[nm]>1)nm+=' '+used[nm];const c=o.material.clone();c.name=nm;o.material=c;});
+  if(ms.length<8)return;const used={};ms.forEach(o=>{if(use.get(o.material)<3)return;let nm=(o.name||o.parent&&o.parent.name||'pezzo').replace(/[_.]+/g,' ').replace(/\s+\d+$/,'').trim()||'pezzo';used[nm]=(used[nm]||0)+1;if(used[nm]>1)nm+=' '+used[nm];const c=o.material.clone();c.name=nm;o.material=c;});
   /* modelli senza materiali reali (bianco "argilla"): finiture plausibili dal nome del pezzo, altrimenti metallo satinato */
   const K=[[/chrom|cromo|inox|steel|exhaust|pipe|muffler|scarico/i,{color:0xe8eaed,metalness:1,roughness:.08}],[/gum|tire|tyre|rubber|gomm|pneu/i,{color:0x161616,metalness:0,roughness:.85}],[/glass|vetro|lens/i,{color:0xdde6ee,metalness:0,roughness:.05,transparent:true,opacity:.45}],[/leather|seat|sella|pelle/i,{color:0x3a2416,metalness:0,roughness:.6}],[/black|nero|frame|telaio/i,{color:0x1b1c1e,metalness:.3,roughness:.45}],[/body|paint|tank|serbat|fender|paraf/i,{color:0x15171b,metalness:.6,roughness:.18}]];
   root.updateMatrixWorld(true);const RB=new THREE.Box3().setFromObject(root),RH=RB.max.y-RB.min.y,bb=new THREE.Box3(),bs=new THREE.Vector3();
-  ms.forEach(o=>{const m=o.material;if(Array.isArray(m)||m.map||!m.color)return;const c=m.color,l=(c.r+c.g+c.b)/3;if(l<.3)return;let r=K.find(k=>k[0].test(m.name));
+  ms.forEach(o=>{const m=o.material;if(Array.isArray(m)||m.map||!m.color)return;const c=m.color,l=(c.r+c.g+c.b)/3,cx=Math.max(c.r,c.g,c.b),cn=Math.min(c.r,c.g,c.b);if(l<.55||cx-cn>.08)return;let r=K.find(k=>k[0].test(m.name));
    if(!r){bb.setFromObject(o);bb.getSize(bs);const q=bs.x/bs.y;if(bb.min.y-RB.min.y<.03*RH&&bs.y>.3*RH&&q>.8&&q<1.25&&bs.z<.35*bs.y)r=K[1];}Object.assign(m,r?{metalness:r[1].metalness,roughness:r[1].roughness,transparent:!!r[1].transparent,opacity:r[1].opacity??1}:{metalness:.85,roughness:.3});m.color.set(r?r[1].color:0xc4c8ce);m.needsUpdate=true;});}
 function register(root){parts=new Map();
   root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.receiveShadow=true;

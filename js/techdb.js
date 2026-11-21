@@ -223,7 +223,7 @@ const DUCATI = {
   ]
 };
 
-export const TECH = { lowrider: DYNA, streetbob: DYNA, breakout: SOFTAIL, roadking: TOURING, electra: TOURING, indian: INDIAN, guzzi: GUZZI, panigale: DUCATI };
+export const TECH = { lowrider: DYNA, streetbob: DYNA, dyna2: DYNA, breakout: SOFTAIL, fatboy15: SOFTAIL, fatboyw: SOFTAIL, roadking: TOURING, electra: TOURING, police: TOURING, indian: INDIAN, chief48: INDIAN };
 export const FAMIGLIE = { 'Dyna Twin Cam': DYNA, 'Softail M8': SOFTAIL, 'Touring M8': TOURING, 'Indian': INDIAN };
 
 export const MANUALI_UFF = [
