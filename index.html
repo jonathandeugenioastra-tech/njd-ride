@@ -9,7 +9,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="NJ.D’ RIDE">
-<link rel="icon" type="image/png" sizes="192x192" href="https://jonathandeugenioastra-tech.github.io/njd-ride/icon-192.png?v=162"><link rel="apple-touch-icon" sizes="180x180" href="https://jonathandeugenioastra-tech.github.io/njd-ride/apple-touch-icon.png?v=162"><link rel="apple-touch-icon-precomposed" sizes="180x180" href="https://jonathandeugenioastra-tech.github.io/njd-ride/apple-touch-icon.png?v=162"><link rel="shortcut icon" href="https://jonathandeugenioastra-tech.github.io/njd-ride/icon-192.png?v=162">
+<link rel="icon" type="image/png" sizes="192x192" href="https://jonathandeugenioastra-tech.github.io/njd-ride/icon-192.png?v=165"><link rel="apple-touch-icon" sizes="180x180" href="https://jonathandeugenioastra-tech.github.io/njd-ride/icona-app-165.png?v=165"><link rel="apple-touch-icon-precomposed" sizes="180x180" href="https://jonathandeugenioastra-tech.github.io/njd-ride/icona-app-165.png?v=165"><link rel="shortcut icon" href="https://jonathandeugenioastra-tech.github.io/njd-ride/icon-192.png?v=165">
+<script>/* diagnosi a schermo: se qualcosa blocca l'avvio lo si vede subito, senza strumenti */
+(function(){var shown=0;function box(t){try{var b=document.getElementById('njdErr');if(!b){b=document.createElement('div');b.id='njdErr';b.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#7a1010;color:#fff;font:13px/1.35 -apple-system,Segoe UI,sans-serif;padding:10px 12px;border-radius:10px;white-space:pre-wrap;max-height:45vh;overflow:auto';(document.body||document.documentElement).appendChild(b);}b.textContent=(b.textContent?b.textContent+'\n':'')+t;}catch(e){}}
+window.__njdBox=box;
+addEventListener('error',function(e){if(e.target&&e.target!==window&&(!/^(SCRIPT|LINK)$/.test(e.target.tagName||'')||/\/parts\//.test(e.target.src||'')))return;if(shown++<6)box('Errore: '+(e.message||(e.target&&(e.target.src||e.target.href))||'risorsa non caricata')+(e.filename?' ('+e.filename.split('/').pop()+':'+e.lineno+')':''));},true);
+addEventListener('unhandledrejection',function(e){if(shown++<6)box('Errore: '+(e.reason&&(e.reason.message||e.reason)));});
+setTimeout(function(){if(!window.__cg){var c=document.createElement('canvas'),g=null;try{g=c.getContext('webgl2');}catch(x){}box('L\'app non è partita entro 30 secondi.\nWebGL2: '+(g?'sì':'NO')+' · import map: '+(HTMLScriptElement.supports&&HTMLScriptElement.supports('importmap')?'sì':'NO')+'\n'+navigator.userAgent);}},30000);
+})();</script>
 <title>NJ.D' RIDE — Custom Moto 3D Modelling Software</title>
 <link rel="stylesheet" href="css/fonts.css">
 <style>
