@@ -206,6 +206,8 @@ export function initOfficina(ctx){
   ctx.toast(({z:'Pezzo specchiato orizzontalmente (destra ↔ sinistra)',y:'Pezzo capovolto verticalmente (sopra ↔ sotto)',x:'Pezzo specchiato avanti ↔ indietro'})[axis]);}
  document.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>exactRotate($('eAxis').value,+b.dataset.rot));
  document.querySelectorAll('[data-flip]').forEach(b=>b.onclick=()=>flip(b.dataset.flip));
+ document.querySelectorAll('[data-rx]').forEach(b=>b.onclick=()=>exactRotate(b.dataset.rx,(+b.dataset.dir)*(+$('eStep').value||5)));
+ document.querySelectorAll('[data-scl]').forEach(b=>b.onclick=()=>{if(!sel){ctx.toast('Seleziona prima un pezzo');return;}pushUndo(sel);const c0=centerOf(sel);sel.scale.multiplyScalar(+b.dataset.scl);sel.updateMatrixWorld(true);keepCenter(sel,c0);syncScale();ctx.invalidate&&ctx.invalidate();});
  $('eRotDeg')&&($('eRotGo').onclick=()=>exactRotate($('eAxis').value,+$('eRotDeg').value||0));
  const snapSet=()=>{const v=+$('eSnap').value;tc.setRotationSnap(v?v*Math.PI/180:null);tc.setTranslationSnap(v?0.005:null);};$('eSnap').onchange=snapSet;snapSet();
  /* ---------- vernice del singolo pezzo ---------- */
