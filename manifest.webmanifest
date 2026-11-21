@@ -1,9 +1,9 @@
 {
-  "name": "NJ.D' RIDE – Custom Moto 3D Modelling Software",
+  "name": "NJ.D' RIDE - Custom Moto 3D",
   "short_name": "NJ.D' RIDE",
   "description": "Configuratore 3D di moto custom su modelli reali. © 2026 dott. Jonathan D'Eugenio",
   "lang": "it",
-  "start_url": "./index.html",
+  "id": "/njd-ride/", "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
