@@ -148,7 +148,7 @@ export function initOfficina(ctx){
    row.append(lb,ci,fs);box.appendChild(row);}}
  /* sostituzione automatica delle gomme della moto */
  $('accTires').onclick=()=>{const m=ctx.getModel();if(!m)return;const kind=$('tireKind').value;const ww=$('tireWW').checked;const tires=[];
-  for(const p of ctx.getParts().values())if(p.cat==='Pneumatici')p.meshes.forEach(([o])=>tires.push(o));if(!tires.length){ctx.toast('Non trovo le gomme in questo modello');return;}
+  for(const p of ctx.getParts().values())if(p.cat==='Pneumatici'||(/^Ruota /.test(p.cat)&&/^Pneumatico/.test(p.name)))p.meshes.forEach(([o])=>tires.push(o));if(!tires.length){ctx.toast('Non trovo le gomme in questo modello');return;}
   const box=new THREE.Box3();tires.forEach(o=>box.expandByObject(o));const s=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());
   const R=s.y/2,len=s.x;const centers=[new THREE.Vector3(box.min.x+R,R+box.min.y,c.z),new THREE.Vector3(box.max.x-R,R+box.min.y,c.z)];
   tires.forEach(o=>{pushUndo(o);o.visible=false;});
@@ -156,7 +156,7 @@ export function initOfficina(ctx){
   advise({userData:{kbType:'tire'}},'modificato');invalidate();};
 
  $('accWheels').onclick=()=>{const m=ctx.getModel();if(!m)return;const hideCats=['Pneumatici','Cerchi'];const hid=[],tires=[];
-  for(const p of ctx.getParts().values()){if(p.cat==='Pneumatici')p.meshes.forEach(([o])=>tires.push(o));if(hideCats.includes(p.cat)||/spoke|raggi/i.test(p.name))p.meshes.forEach(([o])=>hid.push(o));}
+  for(const p of ctx.getParts().values()){const wr=/^Ruota /.test(p.cat);if(p.cat==='Pneumatici'||(wr&&/^Pneumatico/.test(p.name)))p.meshes.forEach(([o])=>tires.push(o));if(hideCats.includes(p.cat)||wr||/spoke|raggi/i.test(p.name))p.meshes.forEach(([o])=>{if(!o.userData.vuoto)hid.push(o);});}
   if(!tires.length){ctx.toast('Non trovo le ruote in questo modello');return;}
   const box=new THREE.Box3();tires.forEach(o=>box.expandByObject(o));const sz=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());const R=sz.y/2;
   hid.forEach(o=>{pushUndo(o);o.visible=false;});
@@ -194,7 +194,8 @@ export function initOfficina(ctx){
 
  /* ---------- rotazioni esatte e capovolgimento attorno al centro del pezzo, sui suoi assi ---------- */
  const AX={x:new THREE.Vector3(1,0,0),y:new THREE.Vector3(0,1,0),z:new THREE.Vector3(0,0,1)};
- function centerOf(o){const b=new THREE.Box3().setFromObject(o);return b.isEmpty()?o.getWorldPosition(new THREE.Vector3()):b.getCenter(new THREE.Vector3());}
+ /* perno di rotazione e scala: asse ruota per i pezzi delle ruote (pivotL, coordinate locali), altrimenti il centro del pezzo */
+ function centerOf(o){if(o.userData&&o.userData.pivotL){o.updateMatrixWorld(true);return o.localToWorld(o.userData.pivotL.clone());}const b=new THREE.Box3().setFromObject(o);return b.isEmpty()?o.getWorldPosition(new THREE.Vector3()):b.getCenter(new THREE.Vector3());}
  function keepCenter(o,c0){o.updateMatrixWorld(true);const c1=centerOf(o);const d=c0.sub(c1);if(o.parent){const inv=new THREE.Matrix4().copy(o.parent.matrixWorld).invert();const p0=o.position.clone().applyMatrix4(o.parent.matrixWorld);p0.add(d);o.position.copy(p0.applyMatrix4(inv));}else o.position.add(d);o.updateMatrixWorld(true);}
  function exactRotate(axis,deg){if(!sel){ctx.toast('Seleziona prima un pezzo');return;}if(!deg)return;pushUndo(sel);const c0=centerOf(sel);
   const sp=$('eAxSpace')?$('eAxSpace').value:'own';

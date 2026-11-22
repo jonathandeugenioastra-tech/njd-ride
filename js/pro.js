@@ -65,7 +65,7 @@ const T = {
 };
 
 /* ======================= MATERIALI E FINITURE ======================= */
-export const FIN_METAL = [['chrome', 'Cromato'], ['blackchrome', 'Black chrome'], ['gloss', 'Nero lucido'], ['satin', 'Nero satinato'], ['wrinkle', 'Nero goffrato'], ['brushed', 'Alluminio spazzolato'], ['polished', 'Alluminio lucidato'], ['contrast', 'Nero con fresature a vista'], ['gold', 'Oro anodizzato'], ['brass', 'Ottone'], ['copper', 'Rame'], ['raw', 'Acciaio grezzo'], ['paint', 'Verniciato a colore']];
+export const FIN_METAL = [['chrome', 'Cromato'], ['blackchrome', 'Black chrome'], ['gloss', 'Nero lucido'], ['satin', 'Nero satinato'], ['wrinkle', 'Nero goffrato'], ['brushed', 'Alluminio spazzolato'], ['polished', 'Alluminio lucidato'], ['contrast', 'Nero con fresature a vista'], ['gold', 'Oro anodizzato'], ['brass', 'Ottone'], ['copper', 'Rame'], ['raw', 'Acciaio grezzo'], ['inox', 'Acciaio inox spazzolato'], ['paint', 'Verniciato a colore']];
 export const LEATHER_COL = [['nero', 'Nero'], ['marrone', 'Marrone'], ['cuoio', 'Cuoio naturale'], ['testa', 'Testa di moro'], ['bordeaux', 'Bordeaux'], ['grigio', 'Grigio antracite'], ['crema', 'Crema'], ['rosso', 'Rosso'], ['tan', 'Tabacco'], ['bianco', 'Bianco'], ['ardesia', 'Blu ardesia']];
 export const LEATHER_TYPE = [['liscia', 'Pelle liscia'], ['invecchiata', 'Pelle invecchiata'], ['scamosciata', 'Scamosciata'], ['lucida', 'Pelle lucida (verniciata)'], ['cocco', 'Stampa cocco'], ['incisa', 'Cuoio inciso a mano']];
 export const THREAD_COL = [['beige', 'Beige'], ['tinta', 'In tinta'], ['bianco', 'Bianco'], ['rosso', 'Rosso'], ['arancio', 'Arancio'], ['nero', 'Nero'], ['grigio', 'Grigio']];
@@ -80,13 +80,14 @@ export function metal(fin, slot, color = '#8a1010') {
   const m = new THREE.MeshPhysicalMaterial({ name: slot, color: 0xffffff, metalness: 1, roughness: .05 });
   const set = o => Object.assign(m, o);
   switch (fin) {
-    case 'chrome': set({ color: new THREE.Color(0xf6f7f9), roughness: .028, envMapIntensity: 1.25 }); break;
-    case 'blackchrome': set({ color: new THREE.Color(0x3b3e44), roughness: .06 }); break;
+    case 'chrome': set({ color: new THREE.Color(0xf6f7f9), roughness: .055, envMapIntensity: 1.2 }); break;          // cromo: lucido ma non specchio perfetto (rugosità 0,05–0,15)
+    case 'blackchrome': set({ color: new THREE.Color(0x3b3e44), roughness: .09 }); break;
+    case 'inox': set({ color: new THREE.Color(0xc6c9ce), roughness: .2, anisotropy: .5, normalMap: T.brushed(), normalScale: new THREE.Vector2(.06, .06) }); break;
     case 'gloss': set({ color: new THREE.Color(0x0b0b0c), metalness: 0, roughness: .32, clearcoat: 1, clearcoatRoughness: .025 }); break;
     case 'satin': set({ color: new THREE.Color(0x141416), metalness: .35, roughness: .48, clearcoat: .35, clearcoatRoughness: .35, normalMap: T.peel(), normalScale: new THREE.Vector2(.08, .08) }); break;
     case 'wrinkle': set({ color: new THREE.Color(0x0e0e0f), metalness: .05, roughness: .82, normalMap: T.peel(), normalScale: new THREE.Vector2(.9, .9) }); break;
     case 'brushed': set({ color: new THREE.Color(0xc9ccd2), roughness: .2, anisotropy: .75, normalMap: T.brushed(), normalScale: new THREE.Vector2(.12, .12) }); break;
-    case 'polished': set({ color: new THREE.Color(0xe9ebef), roughness: .06 }); break;
+    case 'polished': set({ color: new THREE.Color(0xe9ebef), roughness: .1 }); break;
     case 'contrast': set({ color: new THREE.Color(0x151517), metalness: .6, roughness: .33, clearcoat: .4, clearcoatRoughness: .2 }); break;
     case 'gold': set({ color: new THREE.Color(0xdcab4c), roughness: .17, anisotropy: .4 }); break;
     case 'brass': set({ color: new THREE.Color(0xcda64e), roughness: .12 }); break;

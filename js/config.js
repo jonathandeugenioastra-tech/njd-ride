@@ -7,13 +7,16 @@ import { buildPro, PRO_DEFS } from './pro.js';
 import { CATALOG } from './catalog.js';
 import * as ST from './stock.js';
 import { EXH, EXH_CUT } from './exhdata.js';
+import { SPEC } from './motodb.js';
+import * as GDB from './gommedb.js';
+import { STORE, riepilogoTesto } from './compat.js';
 
 /* ---------- postazioni (slot) dei pezzi sostituibili ---------- */
 export const SLOTS = [
   { id: 'manubrio', n: 'Manubrio', ic: '⟟', cats: ['Manubri'], ids: ['ape_hanger', 'semimanubri'] },
   { id: 'sella', n: 'Sella', ic: '◒', cats: ['Selle'], ids: ['sella_foto', 'sella_solo', 'sella_cafe'], pc: ['Sella'] },
   { id: 'scarico', n: 'Scarico', ic: '≋', cats: ['Scarichi'], pc: ['Scarico'] },
-  { id: 'ruote', n: 'Ruote', ic: '◎', cats: ['Ruote'], pc: ['Cerchi', 'Pneumatici'] },
+  { id: 'ruote', n: 'Ruote', ic: '◎', cats: ['Ruote'], pc: ['Cerchi', 'Pneumatici', 'Ruota anteriore', 'Ruota posteriore'] },
   { id: 'specchietti', n: 'Specchietti', ic: '◐', cats: ['Specchietti'], pc: ['Vetri e specchi'] },
   { id: 'faro', n: 'Faro', ic: '◉', cats: ['Luci'], ids: ['faro', 'griglia_faro'] },
   { id: 'frecce', n: 'Frecce e fanalino', ic: '◆', cats: ['Luci'], ids: ['freccia_bullet', 'fanalino', 'portatarga'] },
@@ -124,7 +127,7 @@ function splitIslands(mesh, ids, registerMesh) {
   if (!groups.size) return []; const g = mesh.geometry, out = [];
   for (const [id, keep] of groups) { const ng = subGeo(g, keep); const m = new THREE.Mesh(ng, mesh.material); m.castShadow = m.receiveShadow = true; m.position.copy(mesh.position); m.quaternion.copy(mesh.quaternion); m.scale.copy(mesh.scale);
     m.userData.piece = true; m.userData.islId = id; m.name = (mesh.material.name || 'pezzo'); mesh.parent.add(m); registerMesh && registerMesh(m); out.push(m); }
-  if (rest.length) { mesh.geometry = subGeo(g, rest); } else mesh.visible = false;
+  if (rest.length) { mesh.geometry = subGeo(g, rest); } else { mesh.visible = false; mesh.userData.vuoto = true; } // guscio vuoto: tutte le isole sono diventate pezzi a sé, non va più mostrato
   mesh.userData.isl = null; g.dispose(); for (let a = mesh; a; a = a.parent) if (a.userData.__idx) a.userData.__idx = null; return out;
 }
 
@@ -140,14 +143,20 @@ export function initConfig(ctx) {
   function record(label, undo, redo) { H.push({ label, undo, redo }); if (H.length > 300) H.shift(); R.length = 0; syncQ(); }
   function doUndo() { const a = H.pop(); if (!a) { toast('Niente da annullare'); return; } busy = true; try { a.undo(); } finally { busy = false; } R.push(a); toast('Annullato: ' + a.label); afterChange(); }
   function doRedo() { const a = R.pop(); if (!a) { toast('Niente da ripristinare'); return; } busy = true; try { a.redo(); } finally { busy = false; } H.push(a); toast('Ripristinato: ' + a.label); afterChange(); }
-  function afterChange() { ctx.refreshParts && ctx.refreshParts(); renderList(); renderPanel(); syncQ(); invalidate(); }
+  function afterChange() { ctx.refreshParts && ctx.refreshParts(); syncStore(); renderList(); renderPanel(); syncQ(); invalidate(); }
+  function syncStore() { try { STORE.sync(config, ctx.cur && ctx.cur() ? ctx.cur().id : null); } catch (e) { console.warn('compatibilità', e); } }
 
   /* ---------- selezione ---------- */
   let lastHit = null;
   function meshesOf(s) { if (!s) return []; if (s.kind === 'piece') return [s.obj]; if (s.kind === 'part') { const p = parts().get(s.name); return p ? p.meshes.map(m => m[0]).filter(o => o.visible) : []; } return [s.obj]; }
   function nameOf(s) { if (!s) return ''; if (s.kind === 'piece') return s.obj.userData.zone ? s.obj.name : 'Pezzo selezionato'; if (s.kind === 'part') return ctx.nice(s.name); return s.obj.userData.accName || s.obj.name || 'Accessorio'; }
   function catOf(s) { if (!s) return ''; if (s.kind === 'piece') { const p = s.part && parts().get(s.part); return (p ? p.cat + ' · ' : '') + 'solo questo pezzo (tocca «Gruppo» per tutto il materiale ' + ctx.nice(s.part || '') + ')'; } if (s.kind === 'part') { const p = parts().get(s.name); return p ? p.cat : ''; } const it = s.obj.userData.item; return it ? it.cat : (s.obj.userData.accCat || 'Accessorio'); }
-  function select(s) { sel = s; outline.selectedObjects = meshesOf(s); renderPanel(); syncQ(); invalidate(); if (s && ctx.onSelect) ctx.onSelect(s); }
+  function select(s) { sel = s; wheelOfSel(s); outline.selectedObjects = meshesOf(s); renderPanel(); syncQ(); invalidate(); if (s && ctx.onSelect) ctx.onSelect(s); }
+  // toccando un pezzo di una ruota, il pannello Ruote lavora su quella ruota e su quel componente (mai sull'altra)
+  function wheelOfSel(s) { if (!s) return; let o = null, nm = '';
+    if (s.kind === 'part') { const p = parts().get(s.name); o = p && p.meshes[0] && p.meshes[0][0]; nm = s.name; } else if (s.kind === 'piece') { o = s.obj; nm = s.obj.material && s.obj.material.name || ''; }
+    else if (s.kind === 'acc') { const e = config.find(x => x.obj === s.obj); if (e && e.wh) { whPos = e.wh.pos; whPart = e.wh.parte; } return; }
+    if (o && o.userData.ruota) { whPos = o.userData.ruota; whPart = o.userData.parteRuota || (/^Pneumatico|Fascia/i.test(nm) ? 'gomma' : 'cerchio'); } }
   function selectPart(name, hit) { lastHit = hit || null; select({ kind: 'part', name }); }
   /* solo il pezzo toccato (es. logo del serbatoio, fregio, scritta): isola fisicamente separata della mesh */
   function selectPiece() { if (!lastHit || !lastHit.object || Array.isArray(lastHit.object.material)) { toast('Tocca di nuovo il punto preciso del pezzo'); return; } const m = lastHit.object;
@@ -169,12 +178,12 @@ export function initConfig(ctx) {
 
   /* ---------- operazioni con cronologia ---------- */
   function partState(p) { return { mat: p.cur, color: p.color, finish: p.finish, hid: ctx.hidden.has(p.name) }; }
-  function setPartState(p, s) { ctx.setPartMat(p, s.mat); p.color = s.color; p.finish = s.finish; if (s.hid) ctx.hidden.add(p.name); else ctx.hidden.delete(p.name); p.meshes.forEach(([o]) => o.visible = !s.hid); }
+  function setPartState(p, s) { ctx.setPartMat(p, s.mat); p.color = s.color; p.finish = s.finish; if (s.hid) ctx.hidden.add(p.name); else ctx.hidden.delete(p.name); p.meshes.forEach(([o]) => { if (!o.userData.vuoto) o.visible = !s.hid; }); }
   function paintPart(name, color, finish) { const p = parts().get(name); if (!p) return; const a = partState(p); ctx.repaint(p, color, finish); const b = partState(p);
     record('colore ' + ctx.nice(name), () => setPartState(p, a), () => setPartState(p, b)); afterChange(); }
   function paintMany(list, color, finish, label) { const st = list.map(p => [p, partState(p)]); list.forEach(p => ctx.repaint(p, color, finish)); const st2 = list.map(p => [p, partState(p)]);
     record(label, () => st.forEach(([p, s]) => setPartState(p, s)), () => st2.forEach(([p, s]) => setPartState(p, s))); afterChange(); }
-  function hidePart(name, hid = true) { const p = parts().get(name); if (!p) return; const a = partState(p); if (hid) ctx.hidden.add(name); else ctx.hidden.delete(name); p.meshes.forEach(([o]) => o.visible = !hid); const b = partState(p);
+  function hidePart(name, hid = true) { const p = parts().get(name); if (!p) return; const a = partState(p); if (hid) ctx.hidden.add(name); else ctx.hidden.delete(name); p.meshes.forEach(([o]) => { if (!o.userData.vuoto) o.visible = !hid; }); const b = partState(p);
     record((hid ? 'elimina ' : 'mostra ') + ctx.nice(name), () => setPartState(p, a), () => setPartState(p, b)); if (hid && sel && sel.kind === 'part' && sel.name === name) select(null); afterChange(); }
   function resetPart(name) { const p = parts().get(name); if (!p) return; const a = partState(p); setPartState(p, { mat: p.orig, color: '#' + (p.orig.color ? p.orig.color.getHexString() : '888888'), finish: 'orig', hid: false }); const b = partState(p);
     record('ripristina ' + ctx.nice(name), () => setPartState(p, a), () => setPartState(p, b)); afterChange(); }
@@ -342,8 +351,31 @@ export function initConfig(ctx) {
     for (const [m, ids] of split) for (const pc of splitIslands(m, [...ids.keys()], ctx.registerMesh)) out[ids.get(pc.userData.islId)].push(pc);
     for (const k of ['ant', 'post']) { const A = rimMax[k].sort((x, y) => x - y); out.rim[k] = A.length ? A[Math.floor(A.length * .97)] : null; }
     M.userData.__idx = null; geoCache = null; return (M.userData.__wr = out); }
+  /* unità del modello per metro, ricavate dai pneumatici di serie (diametro reale della misura di serie / raggio misurato sul 3D) */
+  // per ruota: lo stesso pneumatico di serie rimontato coincide esattamente con quello del modello 3D; l'altra ruota fa da riserva
+  function scalaRuote(pos) { const M = ctx.getModel(), sp = SPEC[ctx.cur() && ctx.cur().id]; if (!M || !sp) return 1; const W = ST.buildIndex(M).W, ks = {};
+    for (const [k2, w, m] of [['ant', W.front, sp.gommaAnt], ['post', W.rear, sp.gommaPost]]) { const t = GDB.parseMisura(m); if (w && t && t.diam) { const v = w.R / (t.diam / 2000); if (v > .6 && v < 1.6) ks[k2] = v; } }
+    return ks[pos] || ks.ant || ks.post || 1; }
+  function cerchioMontato(pos) { const m = config.find(e => e.slot === 'ruote' && e.wh && e.wh.pos === pos && e.wh.parte !== 'gomma' && !e.kitOf); if (m) return +((m.it.o || {}).diametro) || null;
+    const sp = SPEC[ctx.cur() && ctx.cur().id], c = sp && (pos === 'ant' ? sp.cerchioAnt : sp.cerchioPost); return c ? c.d : null; }
+  function gommaSerie(pos) { const sp = SPEC[ctx.cur() && ctx.cur().id]; return sp ? (pos === 'ant' ? sp.gommaAnt : sp.gommaPost) : null; }
+  /* seconda passata: isole con lo stesso materiale tutte dentro il cerchio di entrambe le ruote (dadi, coperchi del mozzo, bulloni, pulegge)
+     che il riconoscimento della ruota non ha preso; ognuna va alla sua ruota, così nessun materiale resta in comune tra anteriore e posteriore */
+  function wheelZoneSplit() { const M = ctx.getModel(), W = M && M.userData.__W; if (!W || !W.front || !W.rear) return null; M.updateMatrixWorld(true);
+    const zb = w => new THREE.Box3(new THREE.Vector3(w.c.x - w.R, w.c.y - w.R - .01, w.c.z - .22), new THREE.Vector3(w.c.x + w.R, w.c.y + w.R + .01, w.c.z + .22)), ZF = zb(W.front), ZR = zb(W.rear);
+    const inside = (b, w, Z) => { if (!Z.containsBox(b)) return false; for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) if (Math.hypot(x - w.c.x, y - w.c.y) > w.R) return false; return true; };
+    const byMat = new Map(), bb = new THREE.Box3();
+    M.traverse(o => { if (!o.isMesh || !o.visible || o.userData.vuoto || o.userData.ruota || o.userData.acc || Array.isArray(o.material)) return; bb.setFromObject(o); if (!bb.intersectsBox(ZF) && !bb.intersectsBox(ZR)) return;
+      if (!byMat.has(o.material)) byMat.set(o.material, []); byMat.get(o.material).push(o); });
+    const out = { ant: [], post: [] };
+    for (const ms of byMat.values()) { const f = [], r = [];
+      for (const m of ms) for (const I of islandBoxes(m)) { if (inside(I.box, W.front, ZF)) f.push(I); else if (inside(I.box, W.rear, ZR)) r.push(I); }
+      if (!f.length || !r.length) continue;                 // il materiale tocca una sola ruota: non c'è accoppiamento
+      for (const [pos, L] of [['ant', f], ['post', r]]) { const per = new Map(); L.forEach(I => { if (!per.has(I.mesh)) per.set(I.mesh, []); per.get(I.mesh).push(I.id); });
+        for (const [m, ids] of per) out[pos].push(...splitIslands(m, ids, ctx.registerMesh)); } }
+    if (out.ant.length || out.post.length) { M.userData.__idx = null; geoCache = null; } return out; }
   // nasconde i pezzi di serie e al ripristino li rimette visibili anche se li aveva nascosti la ruota sostituita
-  function hideWheel(ms, label) { return { label, apply: () => ms.forEach(o => o.visible = false), restore: () => ms.forEach(o => o.visible = true) }; }
+  function hideWheel(ms, label) { return { label, apply: () => ms.forEach(o => o.visible = false), restore: () => ms.forEach(o => { if (!o.userData.vuoto) o.visible = true; }) }; }
 
   async function mount(it, opt = {}) {
     if (it.real) { toast('Ricambio 3D reale: clicca sulla moto dove montarlo'); ctx.placeReal && ctx.placeReal(it); return; }
@@ -390,11 +422,14 @@ export function initConfig(ctx) {
     } else if (slot && slot.id === 'ruote' && g.wheels) {
       // una sola ruota e un solo componente per volta: mai entrambe in automatico
       const W = g.wheels, k = wSel.pos, c = k === 'ant' ? W.front : W.rear, WR = wheelRoles(), Rw = (ST.buildIndex(ctx.getModel()).W[k === 'ant' ? 'front' : 'rear'] || {}).R || W.R;
-      const rimR = WR && WR.rim[k] ? WR.rim[k] : Rw * .7, o2 = { ...it.o, parte: wSel.parte };
+      const rimR = WR && WR.rim[k] ? WR.rim[k] : Rw * .7, o2 = { ...it.o, parte: wSel.parte, __k: scalaRuote(k) }, Tm = o2.misura ? GDB.parseMisura(o2.misura) : null;
       if (wSel.parte === 'cerchio') o2.__Rr = rimR - .009;                       // cerchio dentro il pneumatico di serie
-      if (wSel.parte === 'gomma') { o2.__Rr = rimR - .004; o2.__Rt = Rw * .995; } // pneumatico sul cerchio di serie, stesso diametro esterno
+      if (wSel.parte === 'gomma') { o2.__Rr = rimR - .004; o2.__Rt = Tm ? Tm.diam / 2000 * o2.__k : Rw * .995; } // sul cerchio di serie: diametro reale della misura scelta
+      if (wSel.parte === 'gomma' && !o2.canale) { const sp = SPEC[ctx.cur() && ctx.cur().id], cr = sp && (k === 'ant' ? sp.cerchioAnt : sp.cerchioPost); if (cr && cr.w) o2.canale = cr.w; } // il pneumatico prende la larghezza del cerchio che resta
       const it2 = { ...it, o: o2 }, o = tag(buildItem(it2), it2, slot); o.position.copy(c);
-      o.userData.R = wSel.parte === 'cerchio' ? rimR : Rw; o.userData.accName = (wSel.parte === 'gomma' ? 'Pneumatico ' + (o2.gomma || 130) + ' mm' + (o2.battistrada === 'tassellato' ? ' tassellato' : ' stradale') : it.n.split(' · ')[0] + (wSel.parte === 'cerchio' ? ' (solo cerchio)' : '')) + (k === 'ant' ? ' — anteriore' : ' — posteriore'); objs.push(o);
+      o.userData.R = wSel.parte === 'cerchio' ? rimR : Rw; o.userData.ruota = k; o.userData.parteRuota = wSel.parte;
+      o.userData.accName = (Tm ? (wSel.parte === 'completa' ? 'Ruota ' + Tm.cerchio + '" con pneumatico ' : 'Pneumatico ') + o2.misura + (o2.linea ? ' ' + o2.linea : '') + (o2.fianco === 'bianco' ? ' fascia bianca' : '')
+        : wSel.parte === 'gomma' ? 'Pneumatico ' + (o2.gomma || 130) + ' mm' : it.n.split(' · ')[0] + (wSel.parte === 'cerchio' ? ' (solo cerchio)' : '')) + (k === 'ant' ? ' — anteriore' : ' — posteriore'); objs.push(o);
       const lab = (k === 'ant' ? 'anteriore' : 'posteriore');
       if (WR) { const ms = wSel.parte === 'cerchio' ? WR[k + 'R'] : wSel.parte === 'gomma' ? WR[k + 'T'] : [...WR[k + 'T'], ...WR[k + 'R']];
         if (ms.length) stock.push(hideWheel(ms, (wSel.parte === 'cerchio' ? 'cerchio, mozzo e disco di serie ' : wSel.parte === 'gomma' ? 'pneumatico di serie ' : 'ruota di serie ') + lab)); }
@@ -510,20 +545,70 @@ export function initConfig(ctx) {
     if (s || slotView === '_paint') h += `<h3 id="cfgColor">Colore e finitura</h3><div class="sw" id="cfgSw"></div><div class="row"><input type="color" id="cfgCol" value="#7e0b12"><select id="cfgFin">${ctx.FIN.filter(f => f[0] !== 'orig').map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select><button class="btn sm pri" id="cfgApply">Applica</button></div>`;
     if (s && s.kind === 'acc') { const e = config.find(x => x.obj === s.obj || (x.extra || []).includes(s.obj)); if (e && e.kit && e.kit.length) h += `<h3>Da montare insieme</h3>` + e.kit.map((k, i) => `<div class="card warn"><b>${k.n}</b>${k.why}<div class="row"><span class="code">${k.k}</span><button class="btn sm pri" data-kit="${i}">${config.some(x => x.kitOf === e && x.k === k.k) ? 'Aggiunto ✓' : 'Aggiungi alla configurazione'}</button></div></div>`).join(''); }
     if (slot && slot.id === 'ruote') h += `<h3>Quale ruota e cosa cambiare</h3><div class="row" id="whPos">${[['ant', 'Anteriore'], ['post', 'Posteriore']].map(([v, l]) => `<button class="btn sm${whPos === v ? ' pri' : ''}" data-wp="${v}">${l}</button>`).join('')}</div><div class="row" id="whPart">${[['completa', 'Ruota completa'], ['cerchio', 'Solo cerchio'], ['gomma', 'Solo pneumatico']].map(([v, l]) => `<button class="btn sm${whPart === v ? ' pri' : ''}" data-wq="${v}">${l}</button>`).join('')}</div><div class="note">Ogni scelta cambia solo la ruota ${whPos === 'ant' ? 'anteriore' : 'posteriore'}${whPart === 'completa' ? '' : whPart === 'cerchio' ? ', e solo il cerchio (il pneumatico resta)' : ', e solo il pneumatico (il cerchio resta)'}.</div>`;
-    if (slot) h += `<h3 id="cfgAlt">Alternative: ${slot.n}</h3><div class="row"><input id="cfgQ" type="search" placeholder="Filtra: cromato, 14&quot;, pelle…" class="inp"></div><div id="cfgAltGrid" class="rgrid"></div>`;
+    if (slot && slot.id === 'ruote' && whPart !== 'cerchio') h += tyreDbHTML();
+    if (slot) h += `<h3 id="cfgAlt">${slot.id === 'ruote' ? 'Cerchi e ruote complete' : 'Alternative: ' + slot.n}</h3><div class="row"><input id="cfgQ" type="search" placeholder="Filtra: cromato, 14&quot;, pelle…" class="inp"></div><div id="cfgAltGrid" class="rgrid"></div>`;
     P.innerHTML = h;
     P.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { const a = b.dataset.a; if (a === 'edit') { ctx.editObj(s.obj); return; } Q.querySelector(`[data-q="${a}"]`).click(); });
     const swb = $('cfgSw'); if (swb) SW.forEach(([n, c, f]) => { const b = document.createElement('button'); b.title = n; b.style.background = `radial-gradient(circle at 35% 30%,#ffffff55,transparent 45%),${c}`; b.onclick = () => { $('cfgCol').value = c; $('cfgFin').value = f; $('cfgApply').click(); }; swb.appendChild(b); });
     const ap = $('cfgApply'); if (ap) ap.onclick = () => { const c = $('cfgCol').value, f = $('cfgFin').value; if (!s) { paintMany(ctx.bodyParts(), c, f, 'colore carrozzeria'); return; } if (s.kind === 'part') paintPart(s.name, c, f); else { if (s.kind === 'piece' && !s.obj.userData.origMat) s.obj.userData.origMat = s.obj.material; paintAcc(s.obj, c, f); } };
     P.querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { whPos = b.dataset.wp; renderPanel(); });
     P.querySelectorAll('[data-wq]').forEach(b => b.onclick = () => { whPart = b.dataset.wq; renderPanel(); });
+    P.querySelectorAll('[data-tc]').forEach(b => b.onclick = () => { tyCat = b.dataset.tc; renderPanel(); });
+    P.querySelectorAll('[data-tr]').forEach(b => b.onclick = () => { tyRim = +b.dataset.tr; renderPanel(); });
+    P.querySelectorAll('[data-ty]').forEach(b => b.onclick = () => { const t = GDB.cercaId(b.dataset.ty); if (t) mountTyre(t); });
+    const ww = $('tyWW'); if (ww) ww.onchange = () => { tyWW = ww.checked; renderPanel(); };
+    const tt = $('tyTipo'); if (tt) tt.onchange = () => { tyTipo = tt.value; }; const tf = $('tyFin'); if (tf) tf.onchange = () => { tyFin = tf.value; };
     P.querySelectorAll('[data-kit]').forEach(b => b.onclick = () => { const e = config.find(x => x.obj === s.obj || (x.extra || []).includes(s.obj)); const k = e.kit[+b.dataset.kit]; if (config.some(x => x.kitOf === e && x.k === k.k)) return; addKit(e, k); });
     if (slot) { const base = itemsForSlot(slot); const g = $('cfgAltGrid'), q = $('cfgQ'); const run = () => { const t = q.value.toLowerCase().split(/\s+/).filter(Boolean); altGrid(base.filter(c => t.every(x => c.s.includes(x))), g); }; let tq; q.oninput = () => { clearTimeout(tq); tq = setTimeout(run, 160); }; run(); }
   }
+  /* ---------- banca dati pneumatici (anteriore e posteriore sempre separati, filtrati per diametro del cerchio) ---------- */
+  let tyCat = '', tyRim = null, tyWW = false, tyTipo = 'raggi', tyFin = 'chrome';
+  function tyreDbHTML() {
+    const rimS = cerchioMontato(whPos), rim = whPart === 'gomma' ? rimS : (tyRim || rimS || 18), lab = whPos === 'ant' ? 'anteriore' : 'posteriore';
+    const st = gommaSerie(whPos), pst = st && GDB.parseMisura(st), list = rim ? GDB.compatibili(rim, whPos, tyCat || undefined) : [];
+    let h = `<h3 id="tyDb">Pneumatici ${lab} — banca dati</h3>`;
+    h += `<div class="note">${st ? 'Di serie: <b>' + st + '</b>' + (pst ? ' · Ø ' + pst.diam + ' mm' : '') + ' · ' : ''}${whPart === 'gomma' ? 'misure per il cerchio ' + lab + ' da ' + (rim || '?') + '"' : 'ruota completa: scegli il diametro del cerchio'}</div>`;
+    if (whPart === 'completa') h += `<div class="row">${[16, 17, 18, 19, 21, 23].map(d => `<button class="btn sm${rim === d ? ' pri' : ''}" data-tr="${d}">${d}"</button>`).join('')}</div>
+      <div class="row"><select id="tyTipo">${[['raggi', 'Cerchio a raggi'], ['razze5', 'Lega 5 razze'], ['razze9', 'Lega 9 razze'], ['razze3', 'Lega 3 razze'], ['lenticolare', 'Lenticolare']].map(([v, l]) => `<option value="${v}"${v === tyTipo ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      <select id="tyFin">${[['chrome', 'Cromato'], ['blackchrome', 'Black chrome'], ['gloss', 'Nero lucido'], ['satin', 'Nero satinato'], ['brushed', 'Alluminio spazzolato'], ['polished', 'Alluminio lucidato'], ['contrast', 'Nero con fresature']].map(([v, l]) => `<option value="${v}"${v === tyFin ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
+    h += `<div class="row">${[['', 'Tutte'], ...Object.entries(GDB.CATEGORIE).map(([k2, v]) => [k2, v.n])].map(([k2, l]) => `<button class="btn sm${tyCat === k2 ? ' pri' : ''}" data-tc="${k2}">${l}</button>`).join('')}</div>`;
+    h += `<label class="note tyww"><input type="checkbox" id="tyWW"${tyWW ? ' checked' : ''}> Fascia bianca, dove la misura la prevede</label>`;
+    if (!rim) h += '<div class="note">Diametro del cerchio di serie non noto per questo modello: monta prima una ruota completa.</div>';
+    else if (!list.length) h += `<div class="note">Nessuna misura da ${rim}" ${lab} in banca dati per questa categoria.</div>`;
+    else h += '<div class="tylist">' + list.map(t => { const dd = pst ? t.diam - pst.diam : null;
+      return `<button class="ty" data-ty="${t.id}" title="${GDB.descrivi(t).replace(/"/g, '&quot;')}${t.nota ? ' — ' + t.nota : ''}"><b>${t.misura}</b><span>${t.nomeLinea}</span><i>Ø ${t.diam} mm${dd !== null ? ' (' + (dd >= 0 ? '+' : '') + dd + ')' : ''} · ${GDB.COSTR[t.costr] || t.costr}${t.fascia ? ' · fascia bianca' : ''}</i></button>`; }).join('') + '</div>';
+    return h; }
+  function mountTyre(t) {
+    const ww = tyWW && !!t.fascia, idx = GDB.tutte().indexOf(t) + 1, code = 'CG-PNE-' + String(idx).padStart(4, '0');
+    const o = { tipo: whPart === 'completa' ? tyTipo : 'raggi', diametro: String(t.cerchio), gomma: String(t.w), misura: t.misura, linea: t.nomeLinea, disegno: t.disegno, costr: t.costr, fianco: ww ? 'bianco' : 'nero', fascia: ww && t.fascia !== true ? String(t.fascia) : '',
+      finitura: tyFin, finitura_raggi: 'chrome', mozzo: tyFin, disco: 'si', pinza: 'gloss', canale: '', offset: '0' };
+    if (tyWW && !t.fascia) toast('Questa misura non è prevista con fascia bianca: montata con fianco nero');
+    return mount({ k: code, id: 'cerchio', o, n: (whPart === 'completa' ? 'Ruota completa ' + t.cerchio + '" con pneumatico ' : 'Pneumatico ') + t.misura + ' · ' + t.nomeLinea, cat: 'Ruote', t: 'wheel', s: '' }, { slot: 'ruote', pos: whPos, parte: whPart }); }
   function guessSlotSel(s) { return s && s.kind === 'piece' ? guessSlot(s.part) : null; }
   function guessSlot(name) { const p = parts().get(name); if (!p) return null; return SLOTS.find(s => s.pc && s.pc.includes(p.cat)) || (p.cat === 'Carrozzeria e verniciatura' ? null : null); }
 
+  /* ---------- Log Adeguamenti Meccanici & Lista Componenti (ricalcolato a ogni modifica dal motore di compatibilità) ---------- */
+  const esc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const AZ = { 'Aggiunto': 'a', 'Sostituito': 's', 'Rimosso': 'r', 'Da verificare': 'v' };
+  function renderBom() {
+    const B = $('bom'); if (!B) return; let E; try { E = STORE.esito(); } catch (e) { B.innerHTML = '<div class="note">Calcolo non disponibile.</div>'; return; }
+    let h = '';
+    if (E.spec) h += `<div class="bomb"><b>${esc(E.spec.nome)}${E.spec.anno ? ' ' + E.spec.anno : ''}</b> · ${esc(E.fam.n)}</div>`;
+    if (E.quote.length) { h += '<div class="bomh">Quote ricalcolate</div><table class="bomq"><tr><th>Quota</th><th class="n">Di serie</th><th class="n">Progetto</th><th class="n">Δ</th></tr>';
+      for (const q of E.quote) { const d = q.nuovo != null && q.serie != null ? +(q.nuovo - q.serie).toFixed(q.u === '°' ? 1 : 0) : null;
+        h += `<tr title="${esc(q.nota || '')}"><td>${esc(q.n)}</td><td class="n">${q.serie ?? '—'} ${q.u}</td><td class="n">${q.nuovo ?? '—'} ${q.u}</td><td class="n ${d > 0 ? 'up' : d < 0 ? 'dn' : ''}">${d ? (d > 0 ? '+' : '') + d : '='}</td></tr>`; }
+      h += '</table>'; }
+    h += '<div class="bomh">Componenti scelti</div>';
+    h += E.componenti.length ? E.componenti.map(c => `<div class="bomc"><div><span>${esc(c.gruppo)}</span> · ${esc(c.nome)}</div><code class="c">${esc(c.codice)}</code></div>`).join('') : '<div class="note">Moto di serie.</div>';
+    h += `<div class="bomh">Adeguamenti meccanici automatici (${E.adeguamenti.length})</div>`;
+    if (!E.adeguamenti.length) h += '<div class="note">Nessun adeguamento: i componenti scelti si montano senza modifiche.</div>';
+    const cats = [...new Set(E.adeguamenti.map(a => a.cat))];
+    for (const c of cats) { h += `<div class="bomh" style="margin-top:8px">${esc(c)}</div>`;
+      for (const a of E.adeguamenti.filter(x => x.cat === c)) h += `<div class="adj"><span class="b ${AZ[a.azione] || 'v'}">${esc(a.azione)}</span><div class="t">${esc(a.nome)}<span class="c">${a.codice}</span></div><div class="m">${esc(a.motivo)}</div></div>`; }
+    if (E.avvisi.length) h += '<div class="bomh">Avvisi</div>' + E.avvisi.map(a => `<div class="bomw">⚠ ${esc(a)}</div>`).join('');
+    B.innerHTML = h; }
   function renderList() {
+    renderBom();
     const L = $('cfgList'); if (!L) return; if (!config.length) { L.innerHTML = '<div class="note">Moto di serie: nessuna modifica. Ogni pezzo montato compare qui con il suo codice e gli accessori da abbinare.</div>'; $('cfgCount').textContent = ''; return; }
     const main = config.filter(e => !e.kitOf); let h = '';
     for (const e of main) { const kids = config.filter(k => k.kitOf === e), miss = (e.kit || []).filter(k => !kids.some(x => x.k === k.k));
@@ -536,7 +621,8 @@ export function initConfig(ctx) {
     L.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const e = config[+b.dataset.rm]; if (e.obj) removeAcc(e.obj, true); else { removeEntry(e); record('rimuovi ' + e.n, () => addEntry(e), () => removeEntry(e)); afterChange(); } });
   }
   $('cfgStock').onclick = () => { if (!config.length && !H.length) { toast('La moto è già di serie'); return; } const all = config.filter(e => !e.kitOf && e.obj); all.forEach(e => removeAcc(e.obj, true)); config.filter(e => e.service).forEach(removeEntry); afterChange(); toast('Moto riportata di serie (puoi annullare)'); };
-  $('cfgExport').onclick = () => { const t = ['Configurazione NJ.D\' RIDE — ' + (ctx.cur() ? ctx.cur().n : ''), '', ...config.map(e => (e.kitOf ? '   ↳ ' : '• ') + e.k + '  ' + e.n)].join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' })); a.download = 'configurazione.txt'; a.click(); };
+  $('cfgExport').onclick = () => { syncStore(); const t = [riepilogoTesto(STORE.esito(), 'Progetto NJ.D\' RIDE — ' + (ctx.cur() ? ctx.cur().n : 'modello importato')), '', 'CONFIGURAZIONE 3D', ...config.map(e => (e.kitOf ? '   ↳ ' : '• ') + e.k + '  ' + e.n), '', '© 2026 dott. Jonathan D\'Eugenio – Tutti i diritti riservati'].join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain;charset=utf-8' })); a.download = 'NJD_RIDE_riepilogo.txt'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
 
   // i trascinamenti con le maniglie dell'officina entrano nella stessa cronologia
   if (ctx.tc) { let st = null; ctx.tc.addEventListener('dragging-changed', e => { const o = ctx.tc.object; if (!o) return; if (e.value) st = { o, p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() };
@@ -544,6 +630,6 @@ export function initConfig(ctx) {
 
   renderList(); renderPanel(); syncQ();
   const toRm = [];
-  return { select, selectAt, selectPart, selectAcc, get sel() { return sel; }, paintPart, paintMany, hidePart, resetPart, mount, fitAll, focus, undo: doUndo, redo: doRedo, record, reset() { config.forEach(e => [e.obj, ...(e.extra || [])].forEach(o => o && o.parent && o.parent.remove(o))); scene.traverse(o => { if (o.userData && o.userData.acc && o.parent === scene) toRm.push(o); }); toRm.splice(0).forEach(o => scene.remove(o)); config.length = 0; H.length = 0; R.length = 0; sel = null; slotView = null; geoCache = null; outline.selectedObjects = []; renderList(); renderPanel(); syncQ(); },
-    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel };
+  return { select, selectAt, selectPart, selectAcc, get sel() { return sel; }, paintPart, paintMany, hidePart, resetPart, mount, fitAll, focus, undo: doUndo, redo: doRedo, record, reset() { config.forEach(e => [e.obj, ...(e.extra || [])].forEach(o => o && o.parent && o.parent.remove(o))); scene.traverse(o => { if (o.userData && o.userData.acc && o.parent === scene) toRm.push(o); }); toRm.splice(0).forEach(o => scene.remove(o)); config.length = 0; H.length = 0; R.length = 0; sel = null; slotView = null; geoCache = null; outline.selectedObjects = []; tyRim = null; syncStore(); renderList(); renderPanel(); syncQ(); },
+    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel, wheelRoles, wheelZoneSplit, syncStore, scalaRuote };
 }

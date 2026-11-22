@@ -6,40 +6,109 @@ import { shell, patch, orient, gauge, screenMat, SCREEN_COL } from './pro3.js';
 const { mesh, lathe, bentPath, tubeAlong, hexPrism, capScrew, buttonScrew, shapeFrom, roundRect, extrudeShape, smoothClosed, metal, lens, paint, rubber, darkMat, T, V3, IN, PI, sstep, clamp, sel, num, col, YN, RoundedBoxGeometry } = H;
 const PAINT_DEF = '#111111';
 
-/* ---------- texture battistrada ---------- */
+/* ---------- battistrada: rilievo procedurale per disegno (mappa delle normali + ombra nei solchi + micro-rugosità della mescola) ---------- */
 const TT = {};
-function treadTex(kind) {
-  if (TT[kind]) return TT[kind]; const w = 256, h = 256, c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
-  const Hh = new Float32Array(w * h).fill(1);
-  const put = (x0, y0, x1, y1, v) => { for (let y = Math.max(0, y0 | 0); y < Math.min(h, y1); y++) for (let x = Math.max(0, x0 | 0); x < Math.min(w, x1); x++) Hh[y * w + x] = v; };
-  if (kind === 'tassellato') { for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) { const ox = (r % 2) * 42 + k * 85, oy = r * 64 + 8; put(0, oy - 8, w, oy, 0); put(ox + 30, oy, ox + 85, oy + 56, 0); } }
-  else for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const a = Math.abs(((x - w / 2) * .55 + y * .9) % 64); const b = Math.abs(((w / 2 - x) * .55 + y * .9) % 64); if ((x < w / 2 && a < 7 && Math.abs(x - w / 2) > 18) || (x >= w / 2 && b < 7 && Math.abs(x - w / 2) > 18) || Math.abs(x - w / 2) < 3) Hh[y * w + x] = 0; }
-  const id = g.createImageData(w, h), d = id.data;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const dx = (Hh[y * w + (x + 1) % w] - Hh[y * w + (x - 1 + w) % w]) * 2.2, dy = (Hh[((y + 1) % h) * w + x] - Hh[((y - 1 + h) % h) * w + x]) * 2.2, l = Math.hypot(dx, dy, 1), i = (y * w + x) * 4; d[i] = (-dx / l * .5 + .5) * 255; d[i + 1] = (dy / l * .5 + .5) * 255; d[i + 2] = (1 / l * .5 + .5) * 255; d[i + 3] = 255; }
-  g.putImageData(id, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return (TT[kind] = t);
+const smt = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+const tri = u => 1 - 4 * Math.abs((((u % 1) + 1) % 1) - .5);                 // onda triangolare in [-1, 1]
+const gro = (d, w) => smt(w * .55, w, Math.abs(d));                             // solco: 0 dentro, 1 fuori, bordo morbido
+const fr = x => x - Math.floor(x);
+/* rilievo: u = posizione lungo la circonferenza (un passo del disegno), s = posizione trasversale (-1 spalla sinistra … +1 spalla destra) */
+const PATTERN = {
+  coste: (u, s) => Math.min(gro(s, .03), gro(s - .38, .04), gro(s + .38, .04), gro(s - .74, .04), gro(s + .74, .04)),
+  coste_zigzag: (u, s) => { let h = 1; for (const [g, a] of [[0, .05], [.36, .06], [-.36, .06], [.72, .05], [-.72, .05]]) h = Math.min(h, gro(s - g - a * tri(u * 6 + (g > 0 ? .25 : g < 0 ? .75 : 0)), .035)); return h; },
+  blocchi: (u, s) => { const a = Math.abs(s); let h = gro(s - .05 * tri(u * 6), .04);
+    if (a > .14) { const uu = fr(u * 6 + (a > .55 ? .5 : 0) + (s < 0 ? .25 : 0)); h = Math.min(h, gro(uu - .5, .09), gro(a - .55, .035)); } return h; },
+  touring: (u, s) => { const a = Math.abs(s); if (a < .1) return gro(s, .025); return gro(fr(u * 5 - Math.sign(s) * .45 * a + (s < 0 ? .5 : 0)) - .5, .045 + .02 * a); },
+  onde: (u, s) => Math.min(gro(s - .32 - .1 * Math.sin(u * 2 * PI * 4), .045), gro(s + .32 + .1 * Math.sin(u * 2 * PI * 4 + PI), .045), gro(Math.abs(s) - .7 - .07 * Math.sin(u * 2 * PI * 8), .035)),
+  piume: (u, s) => { const a = Math.abs(s); if (a < .06) return 1; const sg = Math.sign(s); let h = gro(fr(u * 5 - sg * (.18 * a + .55 * a * a)) - .5, .035 + .03 * a);
+    if (a > .25 && a < .8) h = Math.min(h, Math.max(gro(fr(u * 10 - sg * .3 * a + .25) - .5, .02), smt(.26, .3, Math.abs(a - .52)))); return h; },
+  slick: (u, s) => gro(s, .008),
+  tassellato: (u, s) => { const a = Math.abs(s), ku = fr(u * 4), kv = fr(a * 2.2 + (Math.floor(fr(u) * 4) % 2 ? .25 : 0)); return ku > .18 && ku < .82 && kv > .15 && kv < .85 ? 1 : 0; }
+};
+PATTERN.stradale = PATTERN.touring;
+/* v0, v1: tratto del profilo coperto dal battistrada (0 = tallone sinistro, 1 = tallone destro) */
+function treadTex(kind, v0 = .3, v1 = .7) {
+  const key = kind + '|' + Math.round(v0 * 400) + '|' + Math.round(v1 * 400); if (TT[key]) return TT[key];
+  const W = 256, HH = 512, Hf = new Float32Array(W * HH), pat = PATTERN[kind] || PATTERN.touring; let seed = 1234567;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let y = 0; y < HH; y++) { const v = 1 - (y + .5) / HH, inT = v > v0 && v < v1, s = inT ? (v - v0) / (v1 - v0) * 2 - 1 : 0, edge = inT ? smt(0, .02, Math.min(v - v0, v1 - v)) : 0;
+    const ring = Math.min(gro(v - .05, .004), gro(v - .95, .004));            // linea di centraggio stampata vicino al cerchio
+    for (let x = 0; x < W; x++) { const u = (x + .5) / W; let h = inT ? 1 - edge * (1 - pat(u, s)) : .92 + .08 * ring;
+      Hf[y * W + x] = h + (rnd() - .5) * (inT ? .06 : .03); } }
+  const cN = document.createElement('canvas'), cA = document.createElement('canvas'); cN.width = cA.width = W; cN.height = cA.height = HH;
+  const gN = cN.getContext('2d'), gA = cA.getContext('2d'), iN = gN.createImageData(W, HH), iA = gA.createImageData(W, HH), K = kind === 'tassellato' ? 4.5 : 2.8;
+  for (let y = 0; y < HH; y++) for (let x = 0; x < W; x++) { const i = y * W + x, o = i * 4;
+    const dx = (Hf[y * W + (x + 1) % W] - Hf[y * W + (x - 1 + W) % W]) * K, dy = (Hf[Math.min(HH - 1, y + 1) * W + x] - Hf[Math.max(0, y - 1) * W + x]) * K, l = Math.hypot(dx, dy, 1);
+    iN.data[o] = (-dx / l * .5 + .5) * 255; iN.data[o + 1] = (dy / l * .5 + .5) * 255; iN.data[o + 2] = (1 / l * .5 + .5) * 255; iN.data[o + 3] = 255;
+    const a = 140 + 115 * Math.max(0, Math.min(1, Hf[i])); iA.data[o] = iA.data[o + 1] = iA.data[o + 2] = a; iA.data[o + 3] = 255; }
+  gN.putImageData(iN, 0, 0); gA.putImageData(iA, 0, 0);
+  const n = new THREE.CanvasTexture(cN), al = new THREE.CanvasTexture(cA); al.colorSpace = THREE.SRGBColorSpace;
+  for (const t of [n, al]) { t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8; }
+  return (TT[key] = { n, al });
 }
 
+/* ---------- sezione reale del pneumatico ---------- */
+/* Rr raggio della sede del tallone, Wt larghezza di sezione, Ht altezza di sezione, Wr larghezza del cerchio (metri).
+   Tallone → fianco (curva a S fino alla larghezza massima) → corona a superellisse (più piatta sulle gomme larghe e ribassate). */
+export function tyreSection(Rr, Wt, Ht, Wr, disegno, off = 0) {
+  const ser = Ht / Wt, slick = disegno === 'slick';
+  const e1 = slick ? .32 : ser >= .85 ? .78 : ser >= .65 ? .68 : ser >= .5 ? .6 : .5, e2 = slick ? .55 : .75;
+  const hm = (ser >= .85 ? .5 : ser >= .6 ? .42 : .36) * Ht, rc = Rr + hm, bead = Math.max(.02, Math.min(Wr / 2 - .004, Wt / 2 - .006));
+  const tw = (slick ? .97 : ser >= .85 ? .8 : .88) * Wt / 2;
+  const bz = (p0, p1, p2, p3, t) => { const a = 1 - t; return a * a * a * p0 + 3 * a * a * t * p1 + 3 * a * t * t * p2 + t * t * t * p3; };
+  const side = sg => { const L = []; for (let i = 0; i <= 16; i++) { const t = i / 16; L.push([bz(Rr, Rr + hm * .5, rc - hm * .45, rc, t), sg * bz(bead, bead, Wt / 2, Wt / 2, t)]); } return L; };
+  const P = [[Rr - .004, -bead - .002], ...side(-1)];
+  const NC = 64; for (let i = 1; i < NC; i++) { const a = -PI / 2 + PI * i / NC, c = Math.cos(a), sn = Math.sin(a); P.push([rc + (Ht - hm) * Math.pow(c, e1), Math.sign(sn) * Math.pow(Math.abs(sn), e2) * Wt / 2]); }
+  P.push(...side(1).reverse(), [Rr - .004, bead + .002]);
+  const V = [0]; for (let i = 1; i < P.length; i++) V.push(V[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1])); const Lt = V[V.length - 1]; for (let i = 0; i < V.length; i++) V[i] /= Lt;
+  let t0 = -1, t1 = -1; for (let i = 18; i < P.length - 18; i++) if (Math.abs(P[i][1]) <= tw) { if (t0 < 0) t0 = i; t1 = i; }
+  P.forEach(p => p[1] += off);
+  return { P, V, v0: V[Math.max(0, t0)], v1: V[Math.max(0, t1)], Rt: Rr + Ht, tw };
+}
+/* lathe di un tratto del profilo, con la coordinata v della texture presa dalla lunghezza d'arco dell'intero profilo */
+function latheV(P, V, j0, j1, seg) {
+  const pts = []; for (let j = j0; j <= j1; j++) pts.push(new THREE.Vector2(Math.max(0, P[j][0]), P[j][1]));
+  const g = new THREE.LatheGeometry(pts, seg), uv = g.attributes.uv, n = j1 - j0 + 1; for (let i = 0; i < uv.count; i++) uv.setY(i, V[j0 + (i % n)]); return g;
+}
+const TYRE_DIS = [['touring', 'Touring (scanalature diagonali)'], ['onde', 'Onde'], ['piume', 'Piume / spirale'], ['coste', 'Coste longitudinali'], ['coste_zigzag', 'Coste a zig-zag (anni \'40-\'50)'], ['blocchi', 'Blocchetti universali'], ['slick', 'Quasi liscio (drag)'], ['tassellato', 'Tassellato']];
+/* misura del pneumatico: «130/60B21», «240/40VR18», «MH90-21», «5.00-16» → larghezza e altezza di sezione (mm) e cerchio (pollici) */
+const ALFA = { MH90: [80, 90], MJ90: [90, 90], MM90: [100, 90], MN90: [110, 90], MP90: [120, 90], MR90: [130, 90], MT90: [130, 90], MU90: [140, 90], MV85: [150, 85], MU85: [140, 90] };
+function misura(str) { if (!str) return null; const s = String(str).toUpperCase(); let m;
+  if ((m = s.match(/^(\d{2,3})\/(\d{2})\s*(?:ZR|VR|R|B|-)?\s*-?(\d{2})/))) return { w: +m[1], h: +m[1] * +m[2] / 100, rim: +m[3] };
+  if ((m = s.match(/^(M[A-Z])(\d{2})\s*(?:B|R)?-?(\d{2})/))) { const e = ALFA[m[1] + m[2]] || [130, 90]; return { w: e[0], h: e[0] * e[1] / 100, rim: +m[3] }; }
+  if ((m = s.match(/^(\d\.\d{2})-(\d{2})/))) { const w = +m[1] * 25.4; return { w, h: w, rim: +m[2] }; }
+  return null; }
+
 /* =============================== CERCHI E PNEUMATICI =============================== */
+/* tutte le misure in metri, poi la ruota si scala con __k (unità del modello per metro) per avere le proporzioni reali della moto */
 const RIM_R = { '16': .2032, '17': .2159, '18': .2286, '19': .2413, '21': .2667, '23': .2921 };
 function buildWheel(o) {
   const G = new THREE.Group(), A = new THREE.Group(); A.rotation.x = PI / 2; G.add(A); // asse ruota = z
-  const Rr = o.__Rr || RIM_R[o.diametro] || .2286, Wt = (+o.gomma || 130) / 1000, asp = Wt > .16 ? .55 : Wt > .12 ? .7 : .9, Ht = o.__Rt ? Math.max(.04, o.__Rt - Rr) : Math.min(.13, Wt * asp), Rt = Rr + Ht, Wr = Math.max(.065, Wt * .72);
+  const k = +o.__k || 1, T = misura(o.misura), rimIn = T ? T.rim : +o.diametro || 18;
+  const Rr = o.__Rr ? o.__Rr / k : (RIM_R[String(rimIn)] || rimIn * .0127);
+  let Wt, Ht; if (T) { Wt = T.w / 1000; Ht = T.h / 1000; } else { Wt = (+o.gomma || 130) / 1000; Ht = Math.min(.13, Wt * (Wt > .16 ? .55 : Wt > .12 ? .7 : .9)); }
+  if (o.__Rt) Ht = Math.max(.03, o.__Rt / k - Rr);
+  const can = +o.canale || (T ? (T.w <= 100 ? 2.15 : T.w <= 130 ? 3 : T.w <= 150 ? 3.5 : T.w <= 180 ? 5 : T.w <= 200 ? 6 : T.w <= 260 ? 8.5 : 10.5) : 0);
+  const Wr = can ? can * .0254 + .014 : Math.max(.065, Wt * .72), off = (+o.offset || 0) / 1000, dis = o.disegno || (o.battistrada === 'tassellato' ? 'tassellato' : 'touring');
   const onlyRim = o.parte === 'cerchio', onlyTyre = o.parte === 'gomma'; // scelta singola: solo cerchio o solo pneumatico
-  G.userData.Rr = Rr; G.userData.Rt = Rt;
+  G.userData.Rr = Rr * k; G.userData.Rt = (Rr + Ht) * k; G.userData.pivotL = new THREE.Vector3(); G.userData.dim = { rimIn, canale: can || null, Wt: Math.round(Wt * 1000), Ht: Math.round(Ht * 1000), offset: Math.round(off * 1000), D: Math.round((Rr + Ht) * 2000) };
   if (!onlyRim) {
-  // pneumatico
-  const tm = new THREE.MeshPhysicalMaterial({ name: 'Pneumatico', color: 0x121213, roughness: .88, normalMap: treadTex(o.battistrada === 'tassellato' ? 'tassellato' : 'stradale').clone(), normalScale: new THREE.Vector2(o.battistrada === 'tassellato' ? 2.2 : 1.2, o.battistrada === 'tassellato' ? 2.2 : 1.2) });
-  tm.normalMap.needsUpdate = true; tm.normalMap.repeat.set(Math.round(2 * PI * Rt / .09), 1);
-  const prof = []; const N = 26; for (let i = 0; i <= N; i++) { const a = -PI / 2 + PI * i / N, sx = Math.sign(Math.sin(a)) * Math.pow(Math.abs(Math.sin(a)), .62); const r = Rr + .006 + (Ht - .006) * Math.pow(Math.max(0, Math.cos(a)), .45), y = sx * (Wt / 2) * (1 - .1 * Math.pow(Math.cos(a), 4)); prof.push(new THREE.Vector2(Math.max(Rr - .002, r), y)); }
-  prof.unshift(new THREE.Vector2(Rr - .004, -Wr / 2 - .002)); prof.push(new THREE.Vector2(Rr - .004, Wr / 2 + .002));
-  const tg = new THREE.LatheGeometry(prof, 180); const uv = tg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i), uv.getY(i)); A.add(mesh(tg, tm));
-  if (o.fianco === 'bianco') for (const s of [1, -1]) { const ww = mesh(lathe([[Rr + Ht * .28, s * (Wt / 2 * .985)], [Rr + Ht * .55, s * (Wt / 2 * 1.002)]].sort((a, b) => a[1] - b[1]), 180, 0), new THREE.MeshPhysicalMaterial({ name: 'Fascia bianca', color: 0xeeeae0, roughness: .7, side: THREE.DoubleSide })); A.add(ww); }
+    const S = tyreSection(Rr, Wt, Ht, Wr, dis, off), tex = treadTex(dis, S.v0, S.v1), N = Math.max(8, Math.round(2 * PI * S.Rt / .11));
+    const nm = tex.n.clone(), am = tex.al.clone(); for (const t of [nm, am]) { t.repeat.set(N, 1); t.needsUpdate = true; }
+    const tm = new THREE.MeshPhysicalMaterial({ name: 'Pneumatico', color: 0x18181a, map: am, roughness: .84, normalMap: nm, normalScale: new THREE.Vector2(dis === 'tassellato' ? 2 : 1.2, dis === 'tassellato' ? 2 : 1.2), sheen: .35, sheenRoughness: .85, sheenColor: new THREE.Color(0x2b2b2b) });
+    const seg = 192, P = S.P, V = S.V, last = P.length - 1;
+    // fascia bianca: larghezza in mm lungo il fianco, a partire da poco sopra il bordo del cerchio
+    const fw = o.fianco === 'bianco' ? Math.min(+o.fascia || (Ht > .1 ? 45 : 25), Ht * 550) / 1000 : 0;
+    if (fw) { const r0 = Rr + Math.max(.012, Ht * .12), r1 = r0 + fw; let a = 1, b = 1; while (a < last / 2 && P[a][0] < r0) a++; b = a; while (b < last / 2 && P[b][0] < r1) b++;
+      const wm = new THREE.MeshPhysicalMaterial({ name: 'Fascia bianca', color: 0xf0ede4, roughness: .6, sheen: .2, sheenRoughness: .9, sheenColor: new THREE.Color(0xffffff) });
+      for (const [j0, j1, m] of [[0, a, tm], [a, b, wm], [b, last - b, tm], [last - b, last - a, wm], [last - a, last, tm]]) A.add(mesh(latheV(P, V, j0, j1, seg), m)); }
+    else A.add(mesh(latheV(P, V, 0, last, seg), tm));
   }
-  if (onlyTyre) return G;
-  // cerchio
+  if (onlyTyre) return G.scale.setScalar(k), G;
+  // cerchio (canale Wr, sposta con l'offset)
   const rm = metal(o.finitura, 'Cerchio');
-  A.add(mesh(lathe([[Rr - .016, -Wr / 2 + .004], [Rr - .004, -Wr / 2], [Rr + .007, -Wr / 2 - .003], [Rr + .009, -Wr / 2 + .002], [Rr - .002, -Wr / 2 + .008], [Rr - .012, -Wr / 4], [Rr - .015, 0], [Rr - .012, Wr / 4], [Rr - .002, Wr / 2 - .008], [Rr + .009, Wr / 2 - .002], [Rr + .007, Wr / 2 + .003], [Rr - .004, Wr / 2], [Rr - .016, Wr / 2 - .004], [Rr - .02, 0], [Rr - .016, -Wr / 2 + .004]], 180, .001), rm));
-  // mozzo
+  A.add(mesh(lathe([[Rr - .016, -Wr / 2 + .004], [Rr - .004, -Wr / 2], [Rr + .007, -Wr / 2 - .003], [Rr + .009, -Wr / 2 + .002], [Rr - .002, -Wr / 2 + .008], [Rr - .012, -Wr / 4], [Rr - .015, 0], [Rr - .012, Wr / 4], [Rr - .002, Wr / 2 - .008], [Rr + .009, Wr / 2 - .002], [Rr + .007, Wr / 2 + .003], [Rr - .004, Wr / 2], [Rr - .016, Wr / 2 - .004], [Rr - .02, 0], [Rr - .016, -Wr / 2 + .004]].map(p => [p[0], p[1] + off]), 180, .001), rm));
+  // mozzo (resta sull'asse)
   const hm = metal(o.mozzo || o.finitura, 'Mozzo'), hw = .13;
   A.add(mesh(lathe([[.012, -hw / 2], [.03, -hw / 2], [.034, -hw / 2 + .006], [.04, -hw / 2 + .012], [.075, -hw / 2 + .016], [.077, -hw / 2 + .024], [.042, -hw / 2 + .03], [.036, 0], [.042, hw / 2 - .03], [.077, hw / 2 - .024], [.075, hw / 2 - .016], [.04, hw / 2 - .012], [.034, hw / 2 - .006], [.03, hw / 2], [.012, hw / 2]], 96, .0015), hm));
   const ax = mesh(lathe([[0, -hw / 2 - .012], [.012, -hw / 2 - .012], [.012, hw / 2 + .012], [0, hw / 2 + .012]], 32, .001), metal('chrome', 'Perno ruota')); A.add(ax);
@@ -48,30 +117,33 @@ function buildWheel(o) {
   if (t === 'raggi') {
     const sm = metal(o.finitura_raggi || 'chrome', 'Raggi'), nm = metal('chrome', 'Nippli'), n = 40, cyl = new THREE.CylinderGeometry(.0019, .0019, 1, 6, 1, true), nip = new THREE.CylinderGeometry(.0034, .0034, .014, 8);
     const IS = new THREE.InstancedMesh(cyl, sm, n), IN2 = new THREE.InstancedMesh(nip, nm, n), M = new THREE.Matrix4(), q = new THREE.Quaternion();
-    for (let k = 0; k < n; k++) { const s = k % 2 ? 1 : -1, ar = k * 2 * PI / n, dir = (Math.floor(k / 2) % 2) ? 1 : -1, ah = ar + dir * .92;
-      const pr = V3(Math.cos(ar) * (Rr - .016), s * .006, Math.sin(ar) * (Rr - .016)), ph = V3(Math.cos(ah) * .07, s * (hw / 2 - .02), Math.sin(ah) * .07), d = pr.clone().sub(ph), L = d.length();
-      q.setFromUnitVectors(V3(0, 1, 0), d.normalize()); M.compose(ph.clone().lerp(pr, .5), q, V3(1, L, 1)); IS.setMatrixAt(k, M); M.compose(pr.clone().addScaledVector(d, -.005), q, V3(1, 1, 1)); IN2.setMatrixAt(k, M); }
+    for (let k2 = 0; k2 < n; k2++) { const s = k2 % 2 ? 1 : -1, ar = k2 * 2 * PI / n, dir = (Math.floor(k2 / 2) % 2) ? 1 : -1, ah = ar + dir * .92;
+      const pr = V3(Math.cos(ar) * (Rr - .016), s * .006 + off, Math.sin(ar) * (Rr - .016)), ph = V3(Math.cos(ah) * .07, s * (hw / 2 - .02), Math.sin(ah) * .07), d = pr.clone().sub(ph), L = d.length();
+      q.setFromUnitVectors(V3(0, 1, 0), d.normalize()); M.compose(ph.clone().lerp(pr, .5), q, V3(1, L, 1)); IS.setMatrixAt(k2, M); M.compose(pr.clone().addScaledVector(d, -.005), q, V3(1, 1, 1)); IN2.setMatrixAt(k2, M); }
     IS.castShadow = true; A.add(IS); A.add(IN2);
   } else if (t === 'lenticolare') {
-    const dm = metal(o.finitura, 'Lenticolare'); for (const s of [1, -1]) A.add(mesh(lathe([[.04, s * .03], [.1, s * .026], [Rr * .7, s * .018], [Rr - .018, s * .006]].map(p => [p[0], p[1]]).sort((a, b) => s * (a[1] - b[1])), 160, .002), dm));
+    const dm = metal(o.finitura, 'Lenticolare'); for (const s of [1, -1]) A.add(mesh(lathe([[.04, s * .03], [.1, s * .026 + off * .3], [Rr * .7, s * .018 + off * .7], [Rr - .018, s * .006 + off]].sort((a, b) => s * (a[1] - b[1])), 160, .002), dm));
   } else {
     const ns = t === 'razze9' ? 9 : t === 'razze3' ? 3 : 5, Ro = Rr - .016, Ri = .06, sh = new THREE.Shape(); sh.absarc(0, 0, Ro, 0, 2 * PI, false);
     const hole = new THREE.Path(); hole.absarc(0, 0, .03, 0, 2 * PI, true); sh.holes.push(hole);
     const spw = ns === 9 ? .1 : ns === 3 ? .32 : .2;
-    for (let k = 0; k < ns; k++) { const a0 = k * 2 * PI / ns + spw * .5 + .02, a1 = (k + 1) * 2 * PI / ns - spw * .5 - .02, p = new THREE.Path(), r1 = Ro - .016, r0 = Ri + .02;
+    for (let k2 = 0; k2 < ns; k2++) { const a0 = k2 * 2 * PI / ns + spw * .5 + .02, a1 = (k2 + 1) * 2 * PI / ns - spw * .5 - .02, p = new THREE.Path(), r1 = Ro - .016, r0 = Ri + .02;
       p.moveTo(Math.cos(a0) * r0, Math.sin(a0) * r0); p.absarc(0, 0, r1, a0 + .015, a1 - .015, false); p.lineTo(Math.cos(a1) * r0, Math.sin(a1) * r0); p.absarc(0, 0, r0, a1, a0, true); sh.holes.push(p); }
-    const cg = extrudeShape(sh, .035, .006, 4, 96); cg.translate(0, 0, -.0175); cg.rotateX(PI / 2); const cm = metal(o.finitura, 'Cerchio in lega'); A.add(mesh(cg, o.finitura === 'contrast' ? [cm, metal('bright', 'Fresature')] : cm));
+    const cg = extrudeShape(sh, .035, .006, 4, 96); cg.translate(0, 0, -.0175); cg.rotateX(PI / 2); cg.translate(0, off, 0); const cm = metal(o.finitura, 'Cerchio in lega'); A.add(mesh(cg, o.finitura === 'contrast' ? [cm, metal('bright', 'Fresature')] : cm));
   }
   if (o.disco !== 'no') { const dsk = new THREE.Group(), r0 = .085, r1 = Rr > .25 ? .16 : .145;
     dsk.add(mesh(lathe([[r0, -.0025], [r1, -.0025], [r1 + .0005, 0], [r1, .0025], [r0, .0025]], 128, .0004), metal('brushed', 'Disco freno')));
-    const hm2 = new THREE.InstancedMesh(new THREE.CylinderGeometry(.0032, .0032, .0056, 12), darkMat('Fori disco'), 36), M = new THREE.Matrix4(); for (let k = 0; k < 36; k++) { const a = k * 2 * PI / 36, rr = r0 + .018 + (k % 3) * .012 + (r1 - r0 - .06) * .5; M.makeTranslation(Math.cos(a) * rr, 0, Math.sin(a) * rr); hm2.setMatrixAt(k, M); } dsk.add(hm2);
+    const hm2 = new THREE.InstancedMesh(new THREE.CylinderGeometry(.0032, .0032, .0056, 12), darkMat('Fori disco'), 36), M = new THREE.Matrix4(); for (let k2 = 0; k2 < 36; k2++) { const a = k2 * 2 * PI / 36, rr = r0 + .018 + (k2 % 3) * .012 + (r1 - r0 - .06) * .5; M.makeTranslation(Math.cos(a) * rr, 0, Math.sin(a) * rr); hm2.setMatrixAt(k2, M); } dsk.add(hm2);
     const car = mesh(new RoundedBoxGeometry(.075, .04, .05, 4, .012), metal(o.pinza || 'gloss', 'Pinza freno')); car.position.set(Math.cos(-2.3) * (r1 - .012), .026, Math.sin(-2.3) * (r1 - .012)); car.rotation.y = 2.3 + PI / 2; dsk.add(car);
     dsk.position.y = hw / 2 - .006; A.add(dsk); }
-  return G;
+  G.scale.setScalar(k); return G;
 }
 registerPro('cerchio', { n: 'Ruota completa (cerchio + pneumatico)', cat: 'Ruote', type: 'wheel', b: 'Performance Machine, RC Components, Excel, Borrani style', p: 563, build: buildWheel,
   opts: [sel('tipo', 'Cerchio', [['raggi', 'A raggi (40)'], ['razze5', 'In lega 5 razze'], ['razze9', 'In lega 9 razze'], ['razze3', 'In lega 3 razze'], ['lenticolare', 'Lenticolare']], 'raggi'), sel('diametro', 'Diametro', [['16', '16"'], ['17', '17"'], ['18', '18"'], ['19', '19"'], ['21', '21"'], ['23', '23"']], '18'),
-    sel('gomma', 'Larghezza pneumatico', [['90', '90 mm'], ['100', '100 mm'], ['130', '130 mm'], ['150', '150 mm'], ['180', '180 mm'], ['200', '200 mm']], '130'), sel('battistrada', 'Battistrada', [['stradale', 'Stradale'], ['tassellato', 'Tassellato']], 'stradale'), sel('fianco', 'Fianco', [['nero', 'Nero'], ['bianco', 'Fascia bianca']], 'nero'),
+    sel('gomma', 'Larghezza pneumatico', [['90', '90 mm'], ['100', '100 mm'], ['130', '130 mm'], ['150', '150 mm'], ['180', '180 mm'], ['200', '200 mm'], ['240', '240 mm'], ['260', '260 mm'], ['300', '300 mm']], '130'),
+    sel('disegno', 'Disegno battistrada', TYRE_DIS, 'touring'), sel('fianco', 'Fianco', [['nero', 'Nero'], ['bianco', 'Fascia bianca']], 'nero'),
+    sel('canale', 'Canale cerchio', [['', 'Automatico'], ['2.15', '2,15"'], ['2.5', '2,5"'], ['3', '3,0"'], ['3.5', '3,5"'], ['4.5', '4,5"'], ['5.5', '5,5"'], ['6', '6,0"'], ['8', '8,0"'], ['8.5', '8,5"'], ['10.5', '10,5"']], ''),
+    sel('offset', 'Offset cerchio sul mozzo', [['0', 'Centrato'], ['-10', '10 mm a sinistra'], ['10', '10 mm a destra'], ['-20', '20 mm a sinistra'], ['20', '20 mm a destra']], '0'),
     sel('finitura', 'Finitura cerchio', FIN_METAL, 'chrome'), sel('finitura_raggi', 'Raggi', FIN_METAL, 'chrome'), sel('mozzo', 'Mozzo', FIN_METAL, 'chrome'), sel('disco', 'Disco freno', YN, 'si'), sel('pinza', 'Pinza', FIN_METAL, 'gloss')] });
 
 /* =============================== PARAFANGHI =============================== */

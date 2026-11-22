@@ -1,0 +1,111 @@
+/* NJ.D' RIDE – Banca dati tecnica delle moto di serie (geometria, ruote, trasmissione) e regole di famiglia.
+   © 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941).
+   Fonti principali: media kit e schede ufficiali Harley-Davidson, archivio Indian Motorcycle, schede concessionari H-D
+   (blocco "Manufacturer Info"), Rider Magazine, Motorcycle.com, National Motorcycle Museum, Coker Tire, cataloghi Zodiac/BTA.
+   Ogni scheda dichiara il livello del dato: 'anno' (modello e anno), 'famiglia' (valori di generazione), 'riferimento'
+   (modello custom ricondotto al modello di serie più vicino), 'stima' (dato non verificato). I conflitti noti sono elencati. */
+
+/* Regole di famiglia: limiti del posteriore e caratteristiche di sistema (acceleratore elettronico, comandi CAN-bus, ABS). */
+export const FAM = {
+  dyna:        { n: 'Dyna FXD 2006-2017', posteriore: { serie: 160, kitSemplice: 180, forcellone: 250, forcelloneMax: 260 }, rbw: null, can: false, absOpz: true, frizione: 'cavo', manubrioSerie: 4, steli: 49 },
+  softailTC:   { n: 'Softail Twin Cam 2000-2017', posteriore: { serie: 200, offset25: 230, offset45: 280, offset55: 300 }, rbw: null, can: false, absOpz: true, frizione: 'cavo', manubrioSerie: 4 },
+  softailM8:   { n: 'Softail Milwaukee-Eight 2018+', posteriore: { serie: 240, kitDedicato: 300 }, rbw: true, can: false, absOpz: true, frizione: 'cavo', manubrioSerie: 4, steli: 49 },
+  sportster:   { n: 'Sportster 2004-2021', posteriore: { serie: 150 }, rbw: false, can: false, absOpz: true, frizione: 'cavo', manubrioSerie: 3, steli: 39 },
+  touring:     { n: 'Touring 2009+', posteriore: { serie: 180 }, rbw: true, can: true, abs: true, frizione: 'idraulica', manubrioSerie: 5, steli: 49 },
+  vrod:        { n: 'V-Rod VRSC 2002-2017', posteriore: { serie: 180, larga: 240 }, rbw: false, can: false, absOpz: true, frizione: 'idraulica', manubrioSerie: 3 },
+  buell:       { n: 'Buell XB', posteriore: { serie: 180 }, rbw: false, can: false, absOpz: false, frizione: 'cavo', manubrioSerie: 1 },
+  indianScout: { n: 'Indian Scout 2015+', posteriore: { serie: 150 }, rbw: true, can: false, absOpz: true, frizione: 'cavo', manubrioSerie: 3, steli: 41 },
+  indianChief: { n: 'Indian Chief Thunder Stroke 2014+', posteriore: { serie: 180 }, rbw: true, can: false, abs: true, frizione: 'cavo', manubrioSerie: 4 },
+  storica:     { n: 'Storiche a telaio rigido (catena)', posteriore: { serie: null }, rbw: false, can: false, absOpz: false, frizione: 'cavo (a pedale su molte storiche)', manubrioSerie: 4, catena: true },
+  custom:      { n: 'Custom su base Harley-Davidson', posteriore: { serie: null }, rbw: null, can: false, absOpz: false, frizione: 'cavo', manubrioSerie: 4 }
+};
+
+const R = (o) => o; // schede scritte per esteso, un campo per riga dove serve
+/* Campi: nome, fam, anno, cc, interasse, sella (a vuoto), sellaCarico, rake (cannotto, gradi), fork (angolo forcella), avancorsa,
+   luce (luce a terra), piega, cerchioAnt/cerchioPost {d pollici, w canale pollici o null, tipo}, gommaAnt/gommaPost (misura),
+   finale {tipo, note}, steli (mm), corsaAnt/corsaPost (mm), peso (kg in ordine di marcia salvo nota), livello, fonte, conflitti. */
+export const SPEC = {
+  lowrider: R({ nome: 'Dyna Low Rider S FXDLS', fam: 'dyna', anno: 2016, cc: 1801, interasse: 1630, sella: 685, sellaCarico: 676, rake: 30.5, fork: 30.5, avancorsa: 128, luce: 105, piega: null,
+    cerchioAnt: { d: 19, w: 2.5, tipo: 'lega' }, cerchioPost: { d: 17, w: 4.5, tipo: 'lega' }, gommaAnt: '100/90B19 57H', gommaPost: '160/70B17 73V',
+    finale: { tipo: 'cinghia', note: 'cinghia (larghezza di famiglia 1")' }, steli: 49, corsaAnt: null, corsaPost: null, peso: 306, livello: 'anno', fonte: 'Scheda H-D, Rider Magazine e Motorcycle.com 2016' }),
+  streetbob: R({ nome: 'Dyna Street Bob FXDB', fam: 'dyna', anno: 2017, cc: 1690, interasse: 1630, sella: 680, sellaCarico: 648, rake: 29, fork: 29, avancorsa: 119, luce: 120, piega: '30° dx / 31° sx',
+    cerchioAnt: { d: 19, w: 2.5, tipo: 'raggi' }, cerchioPost: { d: 17, w: 4.5, tipo: 'raggi' }, gommaAnt: '100/90B19 57H', gommaPost: '160/70B17 73V',
+    finale: { tipo: 'cinghia', note: 'cinghia 1", 131 denti, pulegge 32/66' }, steli: 49, corsaAnt: 127, corsaPost: 79, peso: 304, livello: 'anno', fonte: 'Media kit H-D 2017, scheda Dennis Kirk' }),
+  breakout: R({ nome: 'Softail Breakout FXBR', fam: 'softailM8', anno: 2018, cc: 1746, interasse: 1695, sella: 665, sellaCarico: 650, rake: 34, fork: 34, avancorsa: 145, luce: 115, piega: '26,8°',
+    cerchioAnt: { d: 21, w: null, tipo: 'lega' }, cerchioPost: { d: 18, w: 8.0, tipo: 'lega', nota: 'canale presunto 8,0" come FLFB con la stessa gomma' }, gommaAnt: '130/60B21 63H', gommaPost: '240/40R18 79V',
+    finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 49, corsaAnt: 130, corsaPost: 86, peso: 305, livello: 'anno', fonte: 'Scheda H-D 2018 (concessionario Gold Star)', conflitti: ['corse di famiglia (dato FLFB)'] }),
+  roadking: R({ nome: 'Road King Special FLHRXS', fam: 'touring', anno: 2018, cc: 1746, interasse: 1625, sella: 695, sellaCarico: 671, rake: 26, fork: 29.25, avancorsa: 175, luce: 125, piega: '32° dx / 31° sx',
+    cerchioAnt: { d: 19, w: 3.5, tipo: 'lega' }, cerchioPost: { d: 18, w: 5.0, tipo: 'lega' }, gommaAnt: '130/60B19 61H', gommaPost: '180/55B18 80H',
+    finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 49, corsaAnt: 117, corsaPost: 54.6, peso: 371, livello: 'anno', fonte: 'Media kit H-D Road King Special' }),
+  electra: R({ nome: 'Electra Glide Police FLHTP', fam: 'touring', anno: 2016, cc: 1690, interasse: 1625, sella: 686, sellaCarico: null, rake: 26, fork: 29.25, avancorsa: 170, luce: 135, piega: null,
+    cerchioAnt: { d: 17, w: null, tipo: 'lega' }, cerchioPost: { d: 16, w: null, tipo: 'lega' }, gommaAnt: '130/80B17 65H', gommaPost: '180/65B16 81H',
+    finale: { tipo: 'cinghia', note: 'cinghia 1", 140 denti, 32/68' }, steli: 49, corsaAnt: null, corsaPost: null, peso: 391, livello: 'anno', fonte: 'Schede concessionari H-D 2016', conflitti: ['altezza sella da annuncio rivenditore', 'peso dichiarato ambiguo'] }),
+  indian: R({ nome: 'Indian Scout Bobber (riferimento per il bobber custom)', fam: 'indianScout', anno: 2018, cc: 1133, interasse: 1562, sella: 649, sellaCarico: null, rake: 29, fork: 29, avancorsa: 120, luce: 123, piega: '29°',
+    cerchioAnt: { d: 16, w: 3.5, tipo: 'lega' }, cerchioPost: { d: 16, w: 3.5, tipo: 'lega' }, gommaAnt: '130/90-16 73H', gommaPost: '150/80-16 71H',
+    finale: { tipo: 'cinghia', note: 'cinghia 141 denti' }, steli: 41, corsaAnt: 120, corsaPost: 51, peso: 251, livello: 'riferimento', fonte: 'Indian Motorcycle, scheda Scout Bobber 2018' }),
+  elohv: R({ nome: 'EL Knucklehead 61 OHV', fam: 'storica', anno: 1936, cc: 988, interasse: 1511, sella: 660, sellaCarico: null, rake: null, fork: null, avancorsa: null, luce: null, piega: null,
+    cerchioAnt: { d: 18, w: null, tipo: 'raggi' }, cerchioPost: { d: 18, w: null, tipo: 'raggi' }, gommaAnt: '4.50-18', gommaPost: '4.50-18',
+    finale: { tipo: 'catena', note: 'primaria duplex e finale a catena, 4 marce' }, steli: null, corsaAnt: null, corsaPost: 0, peso: 256, livello: 'anno', fonte: 'National Motorcycle Museum (EL 1936)', conflitti: ['altezza sella da forum (26")', 'dal 1947 gomme 5.00-16'] }),
+  sp883_18: R({ nome: 'Sportster Iron 883 XL883N', fam: 'sportster', anno: 2018, cc: 883, interasse: 1515, sella: 760, sellaCarico: 653, rake: 30, fork: 30, avancorsa: 117, luce: 140, piega: '27° dx / 28° sx',
+    cerchioAnt: { d: 19, w: null, tipo: 'lega 9 razze' }, cerchioPost: { d: 16, w: null, tipo: 'lega 9 razze' }, gommaAnt: '100/90B19 57H', gommaPost: '150/80B16 77H',
+    finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 39, corsaAnt: 92, corsaPost: 41, peso: 256, livello: 'anno', fonte: 'Media kit H-D Iron 883', conflitti: ['sella a vuoto 760 mm contro 653 mm a carico (divario anomalo nel dato ufficiale)'] }),
+  sp883_15: R({ nome: 'Sportster Iron 883 XL883N', fam: 'sportster', anno: 2015, cc: 883, interasse: 1515, sella: 760, sellaCarico: 653, rake: 30, fork: 30, avancorsa: 117, luce: 140, piega: null,
+    cerchioAnt: { d: 19, w: null, tipo: 'lega' }, cerchioPost: { d: 16, w: null, tipo: 'lega' }, gommaAnt: '100/90B19 57H', gommaPost: '150/80B16 77H',
+    finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 39, corsaAnt: null, corsaPost: null, peso: 256, livello: 'famiglia', fonte: 'Valori Iron 883 2018 come riferimento', conflitti: ['dato 2015 non verificato: dal 2016 sospensioni aggiornate', 'media kit 2017 riporta rake 26°'] }),
+  sp_am: R({ nome: 'Sportster (famiglia 2004-2021)', fam: 'sportster', anno: null, cc: 1202, interasse: 1520, sella: 710, rake: 30, fork: 30, avancorsa: 125, luce: 130, cerchioAnt: { d: 19, w: null, tipo: 'lega' }, cerchioPost: { d: 16, w: null, tipo: 'lega' },
+    gommaAnt: '100/90B19 57H', gommaPost: '150/80B16 77H', finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 39, peso: 256, livello: 'famiglia', fonte: 'Valori tipici della famiglia Sportster 2004-2021' }),
+  sp_rusik: R({ nome: 'Sportster (famiglia 2004-2021)', fam: 'sportster', anno: null, cc: 883, interasse: 1520, sella: 710, rake: 30, fork: 30, avancorsa: 125, luce: 130, cerchioAnt: { d: 19, w: null, tipo: 'lega' }, cerchioPost: { d: 16, w: null, tipo: 'lega' },
+    gommaAnt: '100/90B19 57H', gommaPost: '150/80B16 77H', finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 39, peso: 256, livello: 'famiglia', fonte: 'Valori tipici della famiglia Sportster 2004-2021' }),
+  hd_moto: R({ nome: 'Sportster custom (base 2004-2021)', fam: 'sportster', anno: null, cc: 1202, interasse: 1520, sella: 710, rake: 30, fork: 30, avancorsa: 125, luce: 130, cerchioAnt: { d: 19, w: null, tipo: 'lega' }, cerchioPost: { d: 16, w: null, tipo: 'lega' },
+    gommaAnt: '100/90B19 57H', gommaPost: '150/80B16 77H', finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 39, peso: 256, livello: 'riferimento', fonte: 'Custom ricondotta alla famiglia Sportster' }),
+  evochop: R({ nome: 'Chopper su base Sportster Evolution', fam: 'sportster', anno: null, cc: 1202, interasse: 1520, sella: 700, rake: 30, fork: 30, avancorsa: 125, luce: 130, cerchioAnt: { d: 21, w: null, tipo: 'raggi' }, cerchioPost: { d: 16, w: null, tipo: 'raggi' },
+    gommaAnt: 'MH90-21 54H', gommaPost: '150/80B16 77H', finale: { tipo: 'cinghia', note: 'cinghia (catena su molti chopper)' }, steli: 39, peso: 250, livello: 'riferimento', fonte: 'Custom ricondotta alla famiglia Sportster', conflitti: ['geometria del chopper non pubblicata: valori di famiglia'] }),
+  sp1200c: R({ nome: 'Sportster 1200 Custom XL1200C', fam: 'sportster', anno: null, cc: 1202, interasse: 1520, sella: 710, rake: 30, fork: 30, avancorsa: 125, luce: 130, cerchioAnt: { d: 21, w: null, tipo: 'lega' }, cerchioPost: { d: 16, w: null, tipo: 'lega' },
+    gommaAnt: 'MH90-21 54H', gommaPost: '150/80B16 77H', finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 39, peso: 260, livello: 'famiglia', fonte: 'Famiglia Sportster', conflitti: ['scheda XL1200C non verificata: controllare sul media kit H-D'] }),
+  sp72: R({ nome: 'Sportster Seventy-Two XL1200V', fam: 'sportster', anno: 2015, cc: 1202, interasse: 1525, sella: 710, sellaCarico: 675, rake: 30.1, fork: 30.1, avancorsa: 135, luce: 120, piega: '28,6° dx',
+    cerchioAnt: { d: 21, w: null, tipo: 'raggi cromati' }, cerchioPost: { d: 16, w: null, tipo: 'raggi cromati' }, gommaAnt: 'MH90-21 54H (fascia bianca)', gommaPost: '150/80B16 71H',
+    finale: { tipo: 'cinghia', note: 'cinghia 29/68' }, steli: 39, peso: 255, livello: 'anno', fonte: 'Scheda H-D 2015' }),
+  xr1200x: R({ nome: 'Sportster XR1200X', fam: 'sportster', anno: 2011, cc: 1202, interasse: 1524, sella: 795, sellaCarico: 742, rake: 29, fork: 29, avancorsa: 132, luce: 150, piega: null,
+    cerchioAnt: { d: 18, w: null, tipo: 'lega 3 razze' }, cerchioPost: { d: 17, w: null, tipo: 'lega 3 razze' }, gommaAnt: '120/70ZR18', gommaPost: '180/55ZR17',
+    finale: { tipo: 'cinghia', note: 'cinghia 28/68' }, steli: 43, corsaAnt: 125, corsaPost: 89, peso: 260, livello: 'anno', fonte: 'Scheda H-D XR1200X, Motorcycle Mojo' }),
+  nightrod: R({ nome: 'V-Rod Night Rod Special VRSCDX', fam: 'vrod', anno: 2012, cc: 1247, interasse: 1705, sella: 675, sellaCarico: 650, rake: 34, fork: 34, avancorsa: 142, luce: 118, piega: '32°',
+    cerchioAnt: { d: 19, w: null, tipo: 'lega 5 razze sdoppiate' }, cerchioPost: { d: 18, w: null, tipo: 'lega 5 razze sdoppiate' }, gommaAnt: '120/70ZR19 60W', gommaPost: '240/40R18 79V',
+    finale: { tipo: 'cinghia', note: 'cinghia in fibra di carbonio 28/72' }, steli: 43, corsaAnt: 102, corsaPost: 74, peso: 304, livello: 'riferimento', fonte: 'Scheda H-D VRSCDX 2012', conflitti: ['Night Rod 2006-2011 con steli da 49 mm e avancorsa 130 mm'] }),
+  vrod: R({ nome: 'V-Rod VRSCA', fam: 'vrod', anno: 2002, cc: 1130, interasse: 1713, sella: 660, sellaCarico: null, rake: 34, fork: 38, avancorsa: 99, luce: 142, piega: '32°',
+    cerchioAnt: { d: 19, w: 3.0, tipo: 'lega a disco' }, cerchioPost: { d: 18, w: 5.5, tipo: 'lega a disco' }, gommaAnt: '120/70ZR19', gommaPost: '180/55ZR18',
+    finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 49, corsaAnt: 100, corsaPost: 70, peso: 270, livello: 'anno', fonte: 'Motorcycle.com e Total Motorcycle 2002', conflitti: ['peso a secco', 'sella TÜV 688 mm'] }),
+  fatboy15: R({ nome: 'Softail Fat Boy FLSTF', fam: 'softailTC', anno: 2015, cc: 1690, interasse: 1635, sella: 690, sellaCarico: 635, rake: 31, fork: 31, avancorsa: 147, luce: 130, piega: '26,2° dx / 27° sx',
+    cerchioAnt: { d: 17, w: null, tipo: 'lega a disco' }, cerchioPost: { d: 17, w: null, tipo: 'lega a disco' }, gommaAnt: '140/75R17 67V', gommaPost: '200/55R17 78V',
+    finale: { tipo: 'cinghia', note: 'cinghia 32/66' }, steli: null, peso: 329, livello: 'anno', fonte: 'Scheda H-D 2015', conflitti: ['sella a vuoto 670 mm nel media kit 2017'] }),
+  fatboyw: R({ nome: 'Softail Fat Boy FLFB (riferimento 2018+)', fam: 'softailM8', anno: 2018, cc: 1746, interasse: 1665, sella: 675, sellaCarico: 658, rake: 30, fork: 32, avancorsa: 104, luce: 115, piega: '25,6°',
+    cerchioAnt: { d: 18, w: 4.5, tipo: 'lega a disco' }, cerchioPost: { d: 18, w: 8.0, tipo: 'lega a disco' }, gommaAnt: '160/60R18 70V', gommaPost: '240/40R18 79V',
+    finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 49, corsaAnt: 130, corsaPost: 86, peso: 317, livello: 'riferimento', fonte: 'Scheda H-D FLFB 2018', conflitti: ['anno del modello 3D non noto'] }),
+  police: R({ nome: 'Road King Police FLHP', fam: 'touring', anno: null, cc: 1690, interasse: 1625, sella: 690, sellaCarico: null, rake: 26, fork: 29.25, avancorsa: 170, luce: 135, piega: null,
+    cerchioAnt: { d: 17, w: null, tipo: 'lega' }, cerchioPost: { d: 16, w: null, tipo: 'lega' }, gommaAnt: '130/80B17 65H', gommaPost: '180/65B16 81H',
+    finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 49, peso: 380, livello: 'famiglia', fonte: 'Telaio Touring 2014-2016 (FLHTP)', conflitti: ['FLHP non verificata per anno'] }),
+  u1200: R({ nome: 'U 1200 flathead', fam: 'storica', anno: 1946, cc: 1207, interasse: 1511, sella: 700, rake: null, fork: null, avancorsa: null, luce: null, piega: null,
+    cerchioAnt: { d: 16, w: null, tipo: 'raggi' }, cerchioPost: { d: 16, w: null, tipo: 'raggi' }, gommaAnt: '5.00-16', gommaPost: '5.00-16',
+    finale: { tipo: 'catena', note: 'catena' }, steli: null, corsaPost: 0, peso: 260, livello: 'stima', fonte: 'Famiglia Big Twin anni \'40', conflitti: ['interasse, gomme e sella non verificati per il modello U'] }),
+  buell: R({ nome: 'Buell XB12S Lightning', fam: 'buell', anno: 2005, cc: 1203, interasse: 1320, sella: 770, sellaCarico: null, rake: 21, fork: 21, avancorsa: 84, luce: 118, piega: null,
+    cerchioAnt: { d: 17, w: null, tipo: 'lega' }, cerchioPost: { d: 17, w: 5.5, tipo: 'lega' }, gommaAnt: '120/70ZR17', gommaPost: '180/55ZR17',
+    finale: { tipo: 'cinghia', note: 'cinghia; forcellone in alluminio che fa da serbatoio olio' }, steli: 43, corsaAnt: 120, corsaPost: 127, peso: 179, livello: 'anno', fonte: 'Schede Buell XB12S (moto-data, motorcyclespecifications)', conflitti: ['peso a secco'] }),
+  buellxb: R({ nome: 'Buell XB (concept XB47)', fam: 'buell', anno: null, cc: 1203, interasse: 1320, sella: 770, rake: 21, fork: 21, avancorsa: 84, luce: 118, cerchioAnt: { d: 17, w: null, tipo: 'lega' }, cerchioPost: { d: 17, w: 5.5, tipo: 'lega' },
+    gommaAnt: '120/70ZR17', gommaPost: '180/55ZR17', finale: { tipo: 'cinghia', note: 'cinghia' }, steli: 43, peso: 180, livello: 'riferimento', fonte: 'Concept ricondotto alla famiglia XB' }),
+  chief48: R({ nome: 'Indian Chief', fam: 'storica', anno: 1948, cc: 1210, interasse: 1575, sella: 749, rake: null, fork: null, avancorsa: null, luce: null, piega: null,
+    cerchioAnt: { d: 16, w: null, tipo: 'raggi' }, cerchioPost: { d: 16, w: null, tipo: 'raggi' }, gommaAnt: '5.00-16', gommaPost: '5.00-16',
+    finale: { tipo: 'catena', note: 'primaria e finale a catena, 3 marce' }, steli: null, corsaAnt: 76, corsaPost: 51, peso: 255, livello: 'anno', fonte: 'National Motorcycle Museum, Motorcyclepedia', conflitti: ['interasse alternativo 1540 mm', 'la «Black Hawk» propriamente è la Chief 1950-1953'] }),
+  knuckle: R({ nome: 'Knucklehead custom (base EL)', fam: 'storica', anno: null, cc: 1200, interasse: 1511, sella: 660, cerchioAnt: { d: 16, w: null, tipo: 'raggi' }, cerchioPost: { d: 16, w: null, tipo: 'raggi' },
+    gommaAnt: '5.00-16', gommaPost: '5.00-16', finale: { tipo: 'catena', note: 'catena' }, livello: 'riferimento', fonte: 'Ricondotta alla EL/FL Knucklehead (gomme 5.00-16 dei modelli tardi)' }),
+  wlbobber: R({ nome: 'WLA 45 (bobber militare)', fam: 'storica', anno: 1942, cc: 739, interasse: 1460, sella: 760, luce: 102, cerchioAnt: { d: 18, w: null, tipo: 'raggi' }, cerchioPost: { d: 18, w: null, tipo: 'raggi' },
+    gommaAnt: '4.00-18', gommaPost: '4.00-18', finale: { tipo: 'catena', note: 'primaria e finale a catena, 3 marce' }, peso: 245, livello: 'riferimento', fonte: 'National Motorcycle Museum (WLA 1942)', conflitti: ['altezza sella da annuncio commerciale', 'peso a secco'] }),
+  chopperlok: R({ nome: 'Chopper custom su base Harley-Davidson', fam: 'custom', anno: null, interasse: null, sella: null, cerchioAnt: { d: 21, w: null, tipo: 'raggi' }, cerchioPost: { d: 16, w: null, tipo: 'raggi' },
+    gommaAnt: 'MH90-21 54H', gommaPost: '150/80B16 77H', finale: { tipo: 'catena', note: 'catena (tipica dei chopper)' }, livello: 'stima', fonte: 'Modello custom senza dati di serie: misure ruote stimate dal modello 3D' }),
+  hd1910: R({ nome: 'Harley-Davidson d\'epoca (primi \'900)', fam: 'storica', anno: null, interasse: null, sella: null, cerchioAnt: { d: 28, w: null, tipo: 'raggi (clincher)' }, cerchioPost: { d: 28, w: null, tipo: 'raggi (clincher)' },
+    gommaAnt: null, gommaPost: null, finale: { tipo: 'cinghia piatta o catena', note: 'trasmissione d\'epoca' }, livello: 'stima', fonte: 'Modello storico senza scheda verificata' }),
+  dyna2: R({ nome: 'Dyna (famiglia FXD 2006-2017)', fam: 'dyna', anno: null, cc: 1690, interasse: 1630, sella: 680, rake: 29, fork: 29, avancorsa: 119, luce: 120, cerchioAnt: { d: 19, w: 2.5, tipo: 'raggi' }, cerchioPost: { d: 17, w: 4.5, tipo: 'raggi' },
+    gommaAnt: '100/90B19 57H', gommaPost: '160/70B17 73V', finale: { tipo: 'cinghia', note: 'cinghia 1"' }, steli: 49, peso: 304, livello: 'famiglia', fonte: 'Valori Dyna FXD 2006-2017 (Street Bob)' })
+};
+
+export function specOf(id) { return SPEC[id] || null; }
+export function famOf(id) { const s = SPEC[id]; return s ? FAM[s.fam] || null : null; }
+export const LIVELLO = { anno: 'dato ufficiale del modello e dell\'anno', famiglia: 'valore di famiglia/generazione', riferimento: 'modello custom ricondotto al modello di serie più vicino', stima: 'stima: dato non verificato' };
