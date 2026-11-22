@@ -15,7 +15,7 @@
 window.__njdBox=box;
 addEventListener('error',function(e){if(e.target&&e.target!==window&&(!/^(SCRIPT|LINK)$/.test(e.target.tagName||'')||/\/parts\//.test(e.target.src||'')))return;if(e.message==='Script error.'&&!e.filename)return;/* errori di script di Safari o delle estensioni (es. foglio Condividi), non dell'app */if(shown++<6)box('Errore: '+(e.message||(e.target&&(e.target.src||e.target.href))||'risorsa non caricata')+(e.filename?' ('+e.filename.split('/').pop()+':'+e.lineno+')':''));},true);
 addEventListener('unhandledrejection',function(e){if(shown++<6)box('Errore: '+(e.reason&&(e.reason.message||e.reason)));});
-setTimeout(function(){if(window.__cg)return;var L=['three','three/addons/controls/OrbitControls.js','three/addons/loaders/GLTFLoader.js','three/addons/loaders/EXRLoader.js','three/addons/postprocessing/EffectComposer.js','three/addons/postprocessing/SMAAPass.js','three/addons/postprocessing/OutputPass.js','three/addons/geometries/DecalGeometry.js','three/addons/libs/meshopt_decoder.module.js','three/addons/utils/BufferGeometryUtils.js','./js/parts.js','./js/techdb.js','./js/stock.js','./js/market.js','./js/officina.js','./js/config.js','./js/catalog.js','./js/scarichi.js','./js/pro.js','./js/pro2.js','./js/pro3.js','./js/pro4.js','./js/pro5.js','./js/acc.js','./js/kb.js','./js/exhdata.js'];var i=0,bad=[];(function nx(){if(i>=L.length){box('Controllo moduli: '+(bad.length?bad.join('\n'):'tutti ok')+'\n'+navigator.userAgent);return;}var u=L[i++];import(u).then(nx,function(e){bad.push(u+' → '+(e&&(e.name+': '+e.message)));nx();});})();},9000);
+setTimeout(function(){if(window.__cg)return;var L=['three','three/addons/controls/OrbitControls.js','three/addons/loaders/GLTFLoader.js','three/addons/loaders/EXRLoader.js','three/addons/postprocessing/EffectComposer.js','three/addons/postprocessing/SMAAPass.js','three/addons/postprocessing/OutputPass.js','three/addons/geometries/DecalGeometry.js','three/addons/libs/meshopt_decoder.module.js','three/addons/utils/BufferGeometryUtils.js','./js/parts.js','./js/techdb.js','./js/stock.js','./js/market.js','./js/officina.js','./js/config.js','./js/catalog.js','./js/scarichi.js','./js/pro.js','./js/pro2.js','./js/pro3.js','./js/pro4.js','./js/pro5.js','./js/acc.js','./js/kb.js','./js/exhdata.js'];var i=0,bad=[];(function nx(){if(i>=L.length){if(bad.length)box('Controllo moduli:\n'+bad.join('\n')+'\n'+navigator.userAgent);return;}var u=L[i++];import(u).then(nx,function(e){bad.push(u+' → '+(e&&(e.name+': '+e.message)));nx();});})();},9000);
 setTimeout(function(){if(!window.__cg){var c=document.createElement('canvas'),g=null;try{g=c.getContext('webgl2');}catch(x){}box('L\'app non è partita entro 30 secondi.\nWebGL2: '+(g?'sì':'NO')+' · import map: '+(HTMLScriptElement.supports&&HTMLScriptElement.supports('importmap')?'sì':'NO')+'\n'+navigator.userAgent);}},30000);
 })();</script>
 <title>NJ.D' RIDE — Custom Moto 3D Modelling Software</title>
@@ -393,13 +393,17 @@ const SW=[['Rosso candy','#7e0b12','candy'],['Nero vivid','#0a0a0c','gloss'],['P
 
 /* ---------------- renderer ---------------- */
 const view=document.getElementById('view');
+/* telefono/tablet: memoria grafica limitata (iOS chiude la pagina se la supera). Se l'avvio precedente non è arrivato in fondo, si riparte in modalità leggera */
+const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+let SAFE=false;try{SAFE=MOBILE&&localStorage.getItem('njd_avvio')==='in_corso';localStorage.setItem('njd_avvio','in_corso');}catch(e){}
+window.__njdMobile={MOBILE,SAFE};
 const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
 /* livello di qualità secondo la scheda video (0 = integrata vecchia, 1 = integrata recente, 2 = dedicata); si abbassa da solo se i fotogrammi sono lenti */
 const GPU=(()=>{try{const gl=renderer.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info');return e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):'';}catch(e){return '';}})();
-let TIER=/SwiftShader|Basic Render|llvmpipe|HD Graphics( [2-6]\d\d)?\b|GMA/i.test(GPU)?0:/Intel|UHD|Iris|Radeon\(TM\) Graphics|Vega \d+ Graphics|Mali|Adreno|Apple GPU/i.test(GPU)?1:2;
-const Q=()=>[{dpr:Math.min(devicePixelRatio,1),move:.75,msaa:0,shadow:1024},{dpr:Math.min(devicePixelRatio,1.5),move:1,msaa:4,shadow:2048},{dpr:Math.min(Math.max(devicePixelRatio,1.5),2),move:1.25,msaa:8,shadow:4096}][TIER];
+let TIER=/SwiftShader|Basic Render|llvmpipe|HD Graphics( [2-6]\d\d)?\b|GMA/i.test(GPU)?0:/Intel|UHD|Iris|Radeon\(TM\) Graphics|Vega \d+ Graphics|Mali|Adreno|Apple GPU/i.test(GPU)?1:2;if(MOBILE)TIER=0;
+const Q=()=>[{dpr:Math.min(devicePixelRatio,MOBILE?(SAFE?.75:1.25):1),move:.75,msaa:0,shadow:MOBILE?(SAFE?512:1024):1024},{dpr:Math.min(devicePixelRatio,1.5),move:1,msaa:4,shadow:2048},{dpr:Math.min(Math.max(devicePixelRatio,1.5),2),move:1.25,msaa:8,shadow:4096}][TIER];
 renderer.setPixelRatio(Q().dpr);renderer.outputColorSpace=THREE.SRGBColorSpace;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=!SAFE;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
 view.prepend(renderer.domElement);
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(30,1,.05,80);
@@ -470,6 +474,7 @@ const isGlb=b=>b&&b.byteLength>12&&new DataView(b).getUint32(0,true)===0x46546C6
 async function tauriGlb(dir,id){const T=window.__TAURI__;if(!(T&&T.core&&T.core.invoke))return null;try{const b=await T.core.invoke('leggi_glb',{cartella:dir,nome:id});const ab=b instanceof ArrayBuffer?b:(b&&b.buffer?b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength):(Array.isArray(b)?new Uint8Array(b).buffer:null));return isGlb(ab)?ab:null;}catch(e){console.warn('lettura diretta',dir,id,e);return null;}}
 async function partBuffer(id){
   {const b=await tauriGlb('parts',id);if(b)return b;}
+  if(MOBILE){try{const r=await fetch('parts/m/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}}
   try{const r=await fetch('parts/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}
   window.__GLB=window.__GLB||{};const k='p_'+id;if(!window.__GLB[k])await loadScript('parts/'+id+'.js');
   const bin=atob(window.__GLB[k]);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[k];return u.buffer;}
@@ -477,6 +482,7 @@ window.__loadPart=id=>loadPart(id);
 async function loadPart(id){if(!PARTCACHE[id]){const buf=await partBuffer(id);const g=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));PARTCACHE[id]=g.scene;}return PARTCACHE[id];}
 async function modelBuffer(id){
   {const b=await tauriGlb('models',id);if(b)return b;}
+  if(MOBILE){try{const r=await fetch('models/m/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}}
   try{const r=await fetch('models/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}
   if(!(window.__GLB&&window.__GLB[id])){document.getElementById('loadB').style.width='40%';await loadScript('models/'+id+'.js');}
   const b64=window.__GLB[id];const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[id];document.getElementById('loadB').style.width='90%';return u.buffer;}
@@ -502,7 +508,7 @@ async function loadModel(m,url){
   TM.prep=Math.round(performance.now()-T0);buildParts();renderInfo();renderSheet();
   // materiali preparati prima di mostrare la moto: niente scatti al primo movimento
   try{document.getElementById('loadT').textContent='Preparazione dei materiali…';if(renderer.compileAsync){const rt0=renderer.getRenderTarget();renderer.setRenderTarget(composer.readBuffer);try{await renderer.compileAsync(scene,camera);}finally{renderer.setRenderTarget(rt0);}}}catch(e){}
-  TM.shader=Math.round(performance.now()-T0);window.__loadT=TM;console.info('caricamento',m?m.id:'glb',TM);shadowDirty=true;L.style.display='none';document.getElementById('loadB').style.width='0';if(window.CFG){CFG.reset();setTimeout(()=>CFG.fitAll(),50);}setTimeout(()=>{try{STK.buildIndex(model,()=>{});}catch(e){}},120);
+  TM.shader=Math.round(performance.now()-T0);window.__loadT=TM;try{localStorage.setItem('njd_avvio','ok');}catch(e){}if(SAFE&&!window.__safeMsg){window.__safeMsg=1;setTimeout(()=>toast('Modalità leggera: grafica ridotta per la memoria del telefono'),800);}console.info('caricamento',m?m.id:'glb',TM);shadowDirty=true;L.style.display='none';document.getElementById('loadB').style.width='0';if(window.CFG){CFG.reset();setTimeout(()=>CFG.fitAll(),50);}setTimeout(()=>{try{STK.buildIndex(model,()=>{});}catch(e){}},120);
 }
 
 function smoothModel(root){const ang=35*Math.PI/180;root.traverse(o=>{if(!o.isMesh||o.userData.smoothed||o.isSkinnedMesh)return;for(let p=o.parent;p;p=p.parent)if(p.userData&&p.userData.smoothed){o.userData.smoothed=1;return;} /* normali già calcolate nel file (pre-elaborazione) */const g=o.geometry;
