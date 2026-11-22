@@ -3,15 +3,16 @@
   "short_name": "NJ.D' RIDE",
   "description": "Configuratore 3D di moto custom su modelli reali. © 2026 dott. Jonathan D'Eugenio",
   "lang": "it",
-  "id": "/njd-ride/", "start_url": "./index.html",
+  "id": "/njd-ride/",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0c0d10",
   "theme_color": "#0c0d10",
   "icons": [
+    { "src": "icona-app-165.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
-    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }
