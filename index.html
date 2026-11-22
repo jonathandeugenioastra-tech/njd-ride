@@ -119,6 +119,32 @@ a{color:var(--acc2)}
 @media (max-height:520px) and (orientation:landscape){header{height:40px}main{grid-template-columns:minmax(0,1fr) 44%!important;grid-template-rows:none!important;height:calc(100% - 40px)!important}aside{border-top:0!important;border-left:1px solid var(--line)!important}.logo small{display:none}.foot{display:none}#qbar .qn{display:none}}
 @media (max-width:900px) and (orientation:portrait){header{padding-top:env(safe-area-inset-top);height:calc(46px + env(safe-area-inset-top))}main{height:calc(100% - 46px - env(safe-area-inset-top))}.foot{padding-bottom:max(8px,env(safe-area-inset-bottom))}}
 @media (max-height:520px) and (orientation:landscape){body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}}
+
+/* telefono in verticale (1.6.6): si scorre solo in verticale, nessuna barra laterale vicino al bordo, margine sicuro in basso */
+@media (max-width:900px) and (orientation:portrait){
+  main{display:flex!important;flex-direction:column;height:calc(100% - 46px - env(safe-area-inset-top))!important}
+  #stage{flex:0 0 auto;order:1}
+  #view{height:40vh;flex:none}
+  aside{order:2;flex:1 1 auto;min-height:0;display:block!important;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;border-top:1px solid var(--line);padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
+  aside .pane{overflow:visible;flex:none;padding-bottom:24px}
+  .hsw{position:static}
+  .hsA{display:none!important}
+  #qbar,#cbar,.tabs{display:grid!important;overflow:visible!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px 10px;scroll-behavior:auto}
+  #qbar .qn{grid-column:1/-1;min-width:0;max-width:none}
+  #qbar .qsep{display:none}
+  #qbar select{grid-column:span 2;width:100%;font-size:13px;padding:8px 6px}
+  .qb,.cb{min-width:0!important;width:100%;padding:9px 4px;font-size:11.5px;white-space:normal;text-align:center;line-height:1.15}
+  .tabs{gap:5px;background:#0f1114}
+  .tabs button{padding:11px 2px!important;font-size:12px;border:1px solid var(--line)!important;border-radius:9px;background:var(--panel2)}
+  .tabs button.on{border-color:var(--acc)!important;color:var(--text);background:rgba(232,163,61,.14)}
+  #qbar .qb:disabled{display:none}
+  aside:has(#tabs button[data-t="cfg"]:not(.on)) .hsw:has(#cbar){display:none}
+  .hsw:has(> .tabs){position:sticky!important;top:0;z-index:6;box-shadow:0 6px 12px rgba(0,0,0,.35)}
+  #qPanel{display:none!important}
+  main.closed aside{display:block!important}
+  .foot{display:none}
+  aside::after{content:"© 2026 dott. Jonathan D'Eugenio · Tutti i diritti riservati";display:block;padding:16px 12px 0;color:var(--muted);font-size:10.5px;text-align:center}
+}
 </style>
 <script type="importmap">{"imports":{"three":"./lib/three/build/three.module.js","three/addons/":"./lib/three/examples/jsm/"}}</script>
 </head>
@@ -271,7 +297,7 @@ a{color:var(--acc2)}
     <div class="card warn"><b>Verniciatura e aerografia</b>Trasparenti 2K con isocianati: cabina aspirata, protezione respiratoria, guanti in nitrile, schede di sicurezza. In cabina valuta il rischio ATEX.</div>
     <div class="card"><b>Dopo ogni modifica</b>Coppie di serraggio con dinamometrica · cavi liberi a sterzo tutto girato · spurgo freni · luci e frecce · pressione pneumatici · eventuale rimappatura dopo scarico o filtro.</div>
   </section>
-  <div class="foot"><span>© 2026 <b>dott. Jonathan D'Eugenio</b> · Tutti i diritti riservati</span><span>v1.6.5</span></div>
+  <div class="foot"><span>© 2026 <b>dott. Jonathan D'Eugenio</b> · Tutti i diritti riservati</span><span>v1.6.6</span></div>
 </aside>
 <div id="stage">
 <div id="view">
@@ -300,7 +326,7 @@ a{color:var(--acc2)}
   <div class="cp">© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Marchi e design delle moto appartengono ai rispettivi titolari.</div>
 </div></div>
 <div class="modal" id="mInfo"><div class="box" style="max-width:720px">
-  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.6.5</b><button class="btn sm" data-close>Chiudi</button></div>
+  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.6.6</b><button class="btn sm" data-close>Chiudi</button></div>
   <p>© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Software, interfaccia, libreria accessori, consulente meccanico e testi sono opera dell'autore.</p>
   <h3>Modelli 3D di terzi (licenza CC BY 4.0)</h3>
   <ul class="note" id="infoCred"></ul>
@@ -395,8 +421,10 @@ const SW=[['Rosso candy','#7e0b12','candy'],['Nero vivid','#0a0a0c','gloss'],['P
 const view=document.getElementById('view');
 /* telefono/tablet: memoria grafica limitata (iOS chiude la pagina se la supera). Se l'avvio precedente non è arrivato in fondo, si riparte in modalità leggera */
 const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-let SAFE=false;try{SAFE=MOBILE&&localStorage.getItem('njd_avvio')==='in_corso';localStorage.setItem('njd_avvio','in_corso');}catch(e){}
-window.__njdMobile={MOBILE,SAFE};
+let FAILS=0,LASTF='';try{FAILS=+(localStorage.getItem('njd_fail')||0);if(localStorage.getItem('njd_avvio')==='in_corso')FAILS++;LASTF=localStorage.getItem('njd_fase')||'';localStorage.setItem('njd_fail',String(FAILS));localStorage.setItem('njd_avvio','in_corso');}catch(e){}
+const SAFE=MOBILE&&FAILS>=1,NOAUTO=MOBILE&&FAILS>=2;
+const fase=f=>{try{localStorage.setItem('njd_fase',f);}catch(e){}};fase('avvio della grafica');
+window.__njdMobile={MOBILE,SAFE,NOAUTO,FAILS,LASTF};
 const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
 /* livello di qualità secondo la scheda video (0 = integrata vecchia, 1 = integrata recente, 2 = dedicata); si abbassa da solo se i fotogrammi sono lenti */
 const GPU=(()=>{try{const gl=renderer.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info');return e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):'';}catch(e){return '';}})();
@@ -493,13 +521,17 @@ function frame(root){const box=new THREE.Box3().setFromObject(root);const s=box.
 let HERO=[2.8,1.1,-3.2];
 async function loadModel(m,url){
   const T0=performance.now(),TM={};const L=document.getElementById('load');L.style.display='flex';document.getElementById('loadT').textContent='Caricamento '+(m?m.n:'modello')+'…';
-  if(model){scene.remove(model);decals.forEach(d=>d.parent&&d.parent.remove(d));decals=[];}
+  if(model){scene.remove(model);decals.forEach(d=>{d.parent&&d.parent.remove(d);d.geometry&&d.geometry.dispose();});decals=[];
+    /* libera la memoria grafica del modello precedente: sul telefono cambiare moto più volte la esauriva */
+    const mats=new Set();model.traverse(o=>{if(o.isMesh){o.geometry&&o.geometry.dispose();[].concat(o.material||[]).forEach(x=>x&&mats.add(x));}});
+    mats.forEach(x=>{for(const k in x){const v=x[k];if(v&&v.isTexture)v.dispose();}x.dispose();});renderer.renderLists.dispose();model=null;}
+  fase('scarico '+(m?m.id:'file'));
   let gl;
   try{
-  if(m&&!url.startsWith('blob:')){const buf=await modelBuffer(m.id);gl=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));}
+  if(m&&!url.startsWith('blob:')){const buf=await modelBuffer(m.id);fase('lettura '+m.id);gl=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));}
   else gl=await new Promise((res,rej)=>loader.load(url,res,e=>{if(e.total)document.getElementById('loadB').style.width=(e.loaded/e.total*100)+'%';},rej));
   }catch(err){console.error('caricamento modello',err);document.getElementById('loadT').textContent='Impossibile caricare '+(m?m.n:'il modello')+'. Riprova o scegli un altro modello dalla scheda Modello.';setTimeout(()=>{L.style.display='none';},6000);if(model)scene.add(model);return;}
-  TM.file=Math.round(performance.now()-T0);model=gl.scene;const f=frame(model);
+  TM.file=Math.round(performance.now()-T0);fase('preparazione '+(m?m.id:'file'));model=gl.scene;const f=frame(model);
   // orienta la moto lungo l'asse X
   if(m&&m.flip)model.rotation.y+=Math.PI;
   if(f.along==='z'||(m&&m.flip)){if(f.along==='z')model.rotation.y+=Math.PI/2;const b=new THREE.Box3().setFromObject(model);const c=b.getCenter(new THREE.Vector3());model.position.x-=c.x;model.position.z-=c.z;}
@@ -507,8 +539,8 @@ async function loadModel(m,url){
   controls.target.set(0,f.h*.45,0);camera.position.set(...HERO);controls.update();
   TM.prep=Math.round(performance.now()-T0);buildParts();renderInfo();renderSheet();
   // materiali preparati prima di mostrare la moto: niente scatti al primo movimento
-  try{document.getElementById('loadT').textContent='Preparazione dei materiali…';if(renderer.compileAsync){const rt0=renderer.getRenderTarget();renderer.setRenderTarget(composer.readBuffer);try{await renderer.compileAsync(scene,camera);}finally{renderer.setRenderTarget(rt0);}}}catch(e){}
-  TM.shader=Math.round(performance.now()-T0);window.__loadT=TM;try{localStorage.setItem('njd_avvio','ok');}catch(e){}if(SAFE&&!window.__safeMsg){window.__safeMsg=1;setTimeout(()=>toast('Modalità leggera: grafica ridotta per la memoria del telefono'),800);}console.info('caricamento',m?m.id:'glb',TM);shadowDirty=true;L.style.display='none';document.getElementById('loadB').style.width='0';if(window.CFG){CFG.reset();setTimeout(()=>CFG.fitAll(),50);}setTimeout(()=>{try{STK.buildIndex(model,()=>{});}catch(e){}},120);
+  try{document.getElementById('loadT').textContent='Preparazione dei materiali…';fase('materiali '+(m?m.id:'file'));if(renderer.compileAsync){const rt0=renderer.getRenderTarget();renderer.setRenderTarget(composer.readBuffer);try{await renderer.compileAsync(scene,camera);}finally{renderer.setRenderTarget(rt0);}}}catch(e){}
+  TM.shader=Math.round(performance.now()-T0);window.__loadT=TM;fase('primo disegno '+(m?m.id:'file'));setTimeout(()=>{try{localStorage.setItem('njd_avvio','ok');localStorage.setItem('njd_fail','0');localStorage.setItem('njd_fase','completato');}catch(e){}},3000);if(SAFE&&!window.__safeMsg){window.__safeMsg=1;setTimeout(()=>toast('Modalità leggera: grafica ridotta per la memoria del telefono'),800);}console.info('caricamento',m?m.id:'glb',TM);shadowDirty=true;L.style.display='none';document.getElementById('loadB').style.width='0';if(window.CFG){CFG.reset();setTimeout(()=>CFG.fitAll(),50);}setTimeout(()=>{try{STK.buildIndex(model,()=>{});}catch(e){}},120);
 }
 
 function smoothModel(root){const ang=35*Math.PI/180;root.traverse(o=>{if(!o.isMesh||o.userData.smoothed||o.isSkinnedMesh)return;for(let p=o.parent;p;p=p.parent)if(p.userData&&p.userData.smoothed){o.userData.smoothed=1;return;} /* normali già calcolate nel file (pre-elaborazione) */const g=o.geometry;
@@ -673,7 +705,8 @@ function applyTier(){const q=Q();fullDPR=q.dpr;rt.samples=q.msaa;composer.render
     perfN++;perfT+=dt;if(perfN>=40){if(perfT/perfN>.04&&TIER>0&&!document.hidden){TIER--;applyTier();}perfN=0;perfT=0;}}else{perfN=0;perfT=0;}
   requestAnimationFrame(loop);})();
 setEnv('studio');
-document.querySelector('.mcard').click();
+if(NOAUTO){const L=document.getElementById('load');L.style.display='flex';$('loadT').innerHTML='Il telefono ha chiuso l\'app per memoria'+(LASTF?' (fase: '+LASTF+')':'')+'.<br>Riparto in modalità leggera.';const b=document.createElement('button');b.className='btn pri';b.style.marginTop='14px';b.textContent='Carica la moto';b.onclick=()=>{b.remove();try{localStorage.setItem('njd_avvio','in_corso');}catch(e){}document.querySelector('.mcard').click();};L.appendChild(b);try{localStorage.setItem('njd_avvio','ok');}catch(e){}}
+else document.querySelector('.mcard').click();
 window.__composer=composer;window.__cg={OF,invalidate,loadModel,MODELS,parts:()=>parts,camera,setEnv,select,repaint,controls,scene,renderer,THREE,getModel:()=>model,catOfMesh:o=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';}};
 </script>
 <script>/* programma desktop: manuali installati e link esterni si aprono con le app di Windows */
@@ -688,7 +721,14 @@ if(window.__TAURI__){document.addEventListener('click',e=>{const a=e.target.clos
  L.onclick=()=>{el.scrollBy({left:-el.clientWidth*.7})};R.onclick=()=>{el.scrollBy({left:el.clientWidth*.7})};
  el.addEventListener('wheel',e=>{if(el.scrollWidth<=el.clientWidth)return;const d=Math.abs(e.deltaY)>Math.abs(e.deltaX)?e.deltaY:e.deltaX;if(!d)return;e.preventDefault();el.scrollLeft+=d},{passive:false});
  el.addEventListener('scroll',upd,{passive:true});new ResizeObserver(upd).observe(el);new MutationObserver(upd).observe(el,{childList:true,subtree:true});window.addEventListener('resize',upd);setTimeout(upd,300);setTimeout(upd,2000)}
- function go(){['qbar','cbar','tabs'].forEach(id=>wrap(document.getElementById(id)))}
+ function go(){['qbar','cbar','tabs'].forEach(id=>wrap(document.getElementById(id)));place();}
+ const MQ=matchMedia('(max-width:900px) and (orientation:portrait)');
+ function place(){const a=document.querySelector('aside'),st=document.getElementById('stage'),q=document.getElementById('qbar'),c=document.getElementById('cbar'),t=document.getElementById('tabs');if(!a||!st||!q||!c||!t)return;
+  const qw=q.parentNode.classList.contains('hsw')?q.parentNode:q,cw=c.parentNode.classList.contains('hsw')?c.parentNode:c,tw=t.parentNode.classList.contains('hsw')?t.parentNode:t;
+  if(MQ.matches){if(a.firstElementChild!==tw)a.insertBefore(tw,a.firstElementChild);if(qw.parentNode!==a||tw.nextElementSibling!==qw){a.insertBefore(qw,tw.nextElementSibling);a.insertBefore(cw,qw.nextElementSibling);}}
+  else{if(qw.parentNode!==st){st.appendChild(qw);st.appendChild(cw);}if(a.firstElementChild!==tw)a.insertBefore(tw,a.firstElementChild);}
+  window.dispatchEvent(new Event('resize'));}
+ MQ.addEventListener?MQ.addEventListener('change',place):MQ.addListener(place);
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go()})();
 </script>
 <script>/* app per telefono: funziona anche offline (service worker) e scarica in sottofondo tutte le moto */
