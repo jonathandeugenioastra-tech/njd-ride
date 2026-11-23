@@ -617,7 +617,7 @@ export function initConfig(ctx) {
     const undo = () => { objs.forEach(x => x.parent && x.parent.remove(x)); stock.forEach(s0 => s0.restore()); removeEntry(entry); prevObjs.forEach((x, i) => (prevPar[i] || scene).add(x)); prev.forEach(addEntry); tcTo(objs, prevObjs[0]); };
     apply(); objs.forEach(x => ctx.addedObj && ctx.addedObj(x));
     if (!gruppo) { record('monta ' + entry.n, undo, apply); selectAcc(objs[0]); focus(objs); afterChange();
-      toast((posto === 'esposizione' ? 'Messo accanto alla moto: ' : (pcs.length || (fit.nascondiMesh || []).length) ? 'Montato al posto del ' + dove + ' di serie: ' : 'Montato (' + dove + '): ') + entry.n + (fit.nota ? ' — ' + fit.nota : '') + ' · rifinisci con Sposta e i punti di aggancio'); }
+      toast((posto === 'esposizione' ? 'Messo accanto alla moto: ' : (pcs.length || (fit.nascondiMesh || []).length) ? 'Montato al posto ' + (AG.DEL_POSTO[posto] || 'del') + ' ' + dove + ' di serie: ' : 'Montato (' + dove + '): ') + entry.n + (fit.nota ? ' — ' + fit.nota : '') + ' · rifinisci con Sposta e i punti di aggancio'); }
     return { entry, undo, apply, objs }; }
   /* set di due parafanghi: l'isola più piccola è l'anteriore, la più grande il posteriore; ognuno va al suo posto */
   function dividiIsole(g) { const sc = g.clone(true); sc.updateMatrixWorld(true); const out = [];

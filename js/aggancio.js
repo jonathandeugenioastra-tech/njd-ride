@@ -69,8 +69,12 @@ export const RICAMBI = {
 };
 export const NOMI_POSTO = { forcella: 'forcella', ammortizzatore: 'ammortizzatori', sella: 'sella', serbatoio: 'serbatoio', olio: 'serbatoio dell\'olio', scarico: 'scarico',
   silenziatore: 'silenziatore', ruota: 'ruota', cerchio: 'cerchio', gomma: 'pneumatico', disco: 'disco freno', pinza: 'pinza freno', faro: 'faro', mascherina: 'mascherina del faro',
-  frecce_post: 'frecce posteriori', specchietto: 'comandi al manubrio', targa: 'portatarga', pedane: 'comandi avanzati', parafango_ant: 'parafango anteriore', parafango_post: 'parafango posteriore',
+  frecce_post: 'frecce posteriori', specchietto: 'specchietto', targa: 'portatarga', pedane: 'comandi avanzati', parafango_ant: 'parafango anteriore', parafango_post: 'parafango posteriore',
   parafanghi: 'parafanghi', carena: 'carena', spoiler: 'spoiler', manubrio: 'manubrio', blocchetto: 'blocchetto comandi', paramotore: 'paramotore', motore: 'motore', esposizione: 'esposizione' };
+/* preposizione articolata giusta per ogni posto («al posto della forcella», «dello scarico», «degli ammortizzatori») */
+export const DEL_POSTO = { forcella: 'della', ammortizzatore: 'degli', sella: 'della', serbatoio: 'del', olio: 'del', scarico: 'dello', silenziatore: 'del', ruota: 'della',
+  cerchio: 'del', gomma: 'dello', disco: 'del', pinza: 'della', faro: 'del', mascherina: 'della', frecce_post: 'delle', specchietto: 'dello', targa: 'del', pedane: 'dei',
+  parafango_ant: 'del', parafango_post: 'del', parafanghi: 'dei', carena: 'della', spoiler: 'dello', manubrio: 'del', blocchetto: 'del', paramotore: 'del', motore: 'del' };
 
 /* ---------- autovettori di una matrice 3×3 simmetrica (Jacobi): colonne di V, valori in ordine crescente ---------- */
 function autovettori(C) {
