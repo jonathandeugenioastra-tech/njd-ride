@@ -195,7 +195,7 @@ a{color:var(--acc2)}
   <section class="pane" id="p-edit">
     <div class="sel">
       <div class="note">Pezzo selezionato</div><div class="nm" id="eName">Clicca un pezzo sulla moto</div>
-      <div class="row"><label>Selezione</label><select id="eSelMode"><option value="piece">Pezzo singolo</option><option value="mesh">Gruppo intero</option></select></div>
+      <div class="row"><label>Selezione</label><select id="eSelMode"><option value="piece">Pezzo singolo</option><option value="mesh">Componente intero</option></select></div>
       <div class="row"><label>Maniglie</label><select id="eMode"><option value="translate">Sposta (G)</option><option value="rotate">Ruota (R)</option><option value="scale">Scala (S)</option></select></div>
       <div class="row"><label>Larghezza X</label><input type="range" id="esx" min=".3" max="2.5" step=".01" value="1"><b id="osx">100%</b></div>
       <div class="row"><label>Altezza Y</label><input type="range" id="esy" min=".3" max="2.5" step=".01" value="1"><b id="osy">100%</b></div>
@@ -303,7 +303,7 @@ a{color:var(--acc2)}
     <div class="card warn"><b>Verniciatura e aerografia</b>Trasparenti 2K con isocianati: cabina aspirata, protezione respiratoria, guanti in nitrile, schede di sicurezza. In cabina valuta il rischio ATEX.</div>
     <div class="card"><b>Dopo ogni modifica</b>Coppie di serraggio con dinamometrica · cavi liberi a sterzo tutto girato · spurgo freni · luci e frecce · pressione pneumatici · eventuale rimappatura dopo scarico o filtro.</div>
   </section>
-  <div class="foot"><span>© 2026 <b>dott. Jonathan D'Eugenio</b> · Tutti i diritti riservati</span><span>v1.7.0</span></div>
+  <div class="foot"><span>© 2026 <b>dott. Jonathan D'Eugenio</b> · Tutti i diritti riservati</span><span id="verFoot">v1.7.0</span></div>
 </aside>
 <div id="stage">
 <div id="view">
@@ -314,7 +314,7 @@ a{color:var(--acc2)}
 <div id="qbar">
   <div class="qn"><b id="qName">—</b><span id="qCat"></span></div>
   <button class="qb" data-q="focus"><i>⊕</i>Ingrandisci</button><button class="qb" data-q="color"><i>◍</i>Colore</button><button class="qb" data-q="swap"><i>⇄</i>Sostituisci</button>
-  <button class="qb" data-q="piece" title="Passa da pezzo singolo a tutto il gruppo con lo stesso materiale e viceversa"><i>◇</i>Gruppo</button><button class="qb" data-q="del"><i>✕</i>Elimina</button><button class="qb" data-q="reset"><i>↺</i>Ripristina</button><button class="qb" data-q="none"><i>○</i>Deseleziona</button>
+  <button class="qb" data-q="piece" title="Passa dal pezzo toccato al componente intero (il pezzo e quelli montati con lui, es. l'ammortizzatore completo) e viceversa"><i>◇</i>Gruppo</button><button class="qb" data-q="del"><i>✕</i>Elimina</button><button class="qb" data-q="reset"><i>↺</i>Ripristina</button><button class="qb" data-q="none"><i>○</i>Deseleziona</button>
   <span class="qsep"></span><button class="qb" data-q="undo" id="qUndo"><i>↶</i>Annulla</button><button class="qb" data-q="redo" id="qRedo"><i>↷</i>Rifai</button>
   <span class="qsep"></span><button class="qb" data-q="fit"><i>⛶</i>Inquadra</button><select id="camSel" title="Vista"><option value="">Vista…</option></select>
   <button class="qb" id="tRot"><i>⟳</i>Rotazione</button><button class="qb" id="tClay"><i>◌</i>Argilla</button><button class="qb" data-q="panel" id="qPanel"><i>▤</i>Pannello</button>
@@ -384,7 +384,7 @@ const MODELS=[
  {id:'dyna2',sep:1,n:'Harley-Davidson Dyna',y:'—',tri:'212k',a:'shahbazawan5',u:'https://sketchfab.com/3d-models/4ff5c6b7d4f6479abbce5b1f4775f63e',brand:'hd'},
  {id:'knuckle',sep:1,n:'Harley-Davidson Knucklehead custom',y:'storica',tri:'156k',a:'habibahmmad17',u:'https://sketchfab.com/3d-models/c79b3f138ac7417491e5b7982769abcd',brand:'hd'},
  {id:'wlbobber',sep:1,n:'Harley-Davidson bobber militare',y:'storica',tri:'617k',a:'valerij1987',u:'https://sketchfab.com/3d-models/681f54f1e5f440c592b194a4d3caab28',brand:'hd'},
- {id:'chopperlok',sep:1,n:'Harley-Davidson chopper',y:'custom',tri:'1,15M',a:'ericvento62',u:'https://sketchfab.com/3d-models/6d8910cb05be4995959aa5c880e51e05',brand:'hd'},
+ {id:'chopperlok',sep:1,flip:1,n:'Harley-Davidson chopper',y:'custom',tri:'1,15M',a:'ericvento62',u:'https://sketchfab.com/3d-models/6d8910cb05be4995959aa5c880e51e05',brand:'hd'},
  {id:'hd1910',sep:1,n:'Harley-Davidson d\'epoca (primi \'900)',y:'storica',tri:'198k',a:'mertzal',u:'https://sketchfab.com/3d-models/51769145b2d94059924248df7f995b77',brand:'hd'},
  {id:'sp_rusik',sep:1,flip:1,n:'Harley-Davidson Sportster',y:'—',tri:'89k',a:'RusikBBK',u:'https://sketchfab.com/3d-models/ea00cf627ec24dea828601b28b56548f',brand:'hd'},
  {id:'sp1200c',sep:1,n:'Harley-Davidson Sportster 1200 Custom',y:'—',tri:'665k',a:'polyNeast',u:'https://sketchfab.com/3d-models/b36bf3448c5241938021778ea0f313d1',brand:'hd'},
@@ -419,7 +419,8 @@ const CATS=[
  ['Scarico',/muffler|exmanifold|exhaust|pipe/i],['Motore',/motor|twin_cam|114ci|mechanics|engine|gear|filter/i],
  ['Cromature',/chrome|med__|silver|nise/i],['Sella',/seat|indian_seat/i],['Trasmissione',/belt|chain/i],
  ['Luci e indicatori',/light|indicator|reflector|lamp|orange|red_back|yelow/i],['Vetri e specchi',/glass|miror|mirror/i],
- ['Strumentazione',/tacho|gauge|cockpit|dash/i],['Targa',/plate|carp/i],['Parti nere',/black|dark|dmetal|bron|bolts|cables|flange/i]];
+ ['Strumentazione',/tacho|gauge|cockpit|dash/i],['Targa',/plate|carp/i],['Telaio e forcellone',/frame|telaio|swingarm|forcellone/i],['Forcella e sterzo',/\bfork|forcell|handlebar|manubri|clamp_steel|grip/i],
+ ['Sospensioni',/shock|ammort/i],['Parti nere',/black|dark|dmetal|bron|bolts|cables|flange/i]];
 const catOf=n=>{for(const [c,r] of CATS)if(r.test(n))return c;return 'Altri pezzi';};
 const nice=n=>n.replace(/__.*$/,'').replace(/_\d+$/,'').replace(/[_]+/g,' ').trim();
 
@@ -430,7 +431,7 @@ const SW=[['Rosso candy','#7e0b12','candy'],['Nero vivid','#0a0a0c','gloss'],['P
 /* ---------------- renderer ---------------- */
 const view=document.getElementById('view');
 /* telefono/tablet: memoria grafica limitata (iOS chiude la pagina se la supera). Se l'avvio precedente non è arrivato in fondo, si riparte in modalità leggera */
-const VERSIONE='1.7.1';
+const VERSIONE='1.7.2';{const vf=document.getElementById('verFoot');if(vf)vf.textContent='v'+VERSIONE;}
 const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 let FAILS=0,LASTF='';try{FAILS=+(localStorage.getItem('njd_fail')||0);if(localStorage.getItem('njd_avvio')==='in_corso')FAILS++;LASTF=localStorage.getItem('njd_fase')||'';localStorage.setItem('njd_fail',String(FAILS));localStorage.setItem('njd_avvio','in_corso');}catch(e){}
 const SAFE=MOBILE&&FAILS>=1,NOAUTO=MOBILE&&FAILS>=2;
@@ -471,7 +472,20 @@ placeLights();
 function noiseNormal(seed,scale){const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d');const d=g.createImageData(512,512);let s=seed;const r=()=>(s=(s*16807)%2147483647)/2147483647;
   for(let i=0;i<512*512;i++){const a=r()*6.283,m=r()*scale;d.data[i*4]=128+Math.cos(a)*m*127;d.data[i*4+1]=128+Math.sin(a)*m*127;d.data[i*4+2]=255;d.data[i*4+3]=255;}g.putImageData(d,0,0);
   const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(12,12);return t;}
-const FLAKE=noiseNormal(7,.9),GRAIN=noiseNormal(3,.5);GRAIN.repeat.set(5,5);
+/* dettaglio fine «OLED 4K»: scaglie metalliche vere (dischetti con orientamento proprio, come le scaglie di alluminio nella vernice) e grana a celle
+   (pelle, gomma, vernice raggrinzita) calcolata come rilievo; le mipmap evitano lo sfarfallio da lontano */
+function texDettaglio(seed,kind){const S=MOBILE?512:1024,d=new Uint8Array(S*S*4);let s=seed;const r=()=>(s=(s*16807)%2147483647)/2147483647;
+  if(kind==='flake'){for(let i=0;i<S*S;i++){d[i*4]=128;d[i*4+1]=128;d[i*4+2]=255;d[i*4+3]=255;}
+    const N=Math.round(S*S*.09);for(let k=0;k<N;k++){const cx=r()*S,cy=r()*S,rad=.8+r()*1.9,a=r()*6.283,t=Math.pow(r(),.7)*.62,nx=Math.cos(a)*Math.sin(t),ny=Math.sin(a)*Math.sin(t),nz=Math.cos(t);
+      for(let y=Math.floor(cy-rad);y<=cy+rad;y++)for(let x=Math.floor(cx-rad);x<=cx+rad;x++){if((x-cx)**2+(y-cy)**2>rad*rad)continue;const X=(x%S+S)%S,Y=(y%S+S)%S,i=(Y*S+X)*4;d[i]=128+nx*127;d[i+1]=128+ny*127;d[i+2]=128+nz*127;}}}
+  else{const C=Math.max(8,S/44|0),G=S/C|0,P=new Float32Array(G*G*2);for(let i=0;i<G*G;i++){P[i*2]=r();P[i*2+1]=r();}const h=new Float32Array(S*S);
+    for(let y=0;y<S;y++)for(let x=0;x<S;x++){const gx=x/C,gy=y/C,ix=Math.floor(gx),iy=Math.floor(gy);let f1=9,f2=9;
+      for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=ix+i,cy=iy+j,w=((cy%G+G)%G)*G+((cx%G+G)%G),dx=cx+P[w*2]-gx,dy=cy+P[w*2+1]-gy,dd=dx*dx+dy*dy;if(dd<f1){f2=f1;f1=dd;}else if(dd<f2)f2=dd;}
+      h[y*S+x]=Math.min(1,(Math.sqrt(f2)-Math.sqrt(f1))*2.2)**.55+(r()-.5)*.06;}
+    for(let y=0;y<S;y++)for(let x=0;x<S;x++){const hx=h[y*S+(x+1)%S]-h[y*S+(x-1+S)%S],hy=h[((y+1)%S)*S+x]-h[((y-1+S)%S)*S+x],l=Math.hypot(hx*2.2,hy*2.2,1),i=(y*S+x)*4;
+      d[i]=128-hx*2.2/l*127;d[i+1]=128-hy*2.2/l*127;d[i+2]=128+127/l;d[i+3]=255;}}
+  const t=new THREE.DataTexture(d,S,S,THREE.RGBAFormat);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.magFilter=THREE.LinearFilter;t.minFilter=THREE.LinearMipmapLinearFilter;t.generateMipmaps=true;t.needsUpdate=true;return t;}
+const FLAKE=texDettaglio(7,'flake'),GRAIN=texDettaglio(3,'grain');FLAKE.repeat.set(12,12);GRAIN.repeat.set(5,5);
 
 /* ---------------- stato ---------------- */
 let model=null,cur=null,parts=new Map(),selected=null,hidden=new Set(),decals=[],lastDecal=null;
@@ -487,9 +501,10 @@ async function fetchGlb(u){try{const r=await fetch(u);if(r.ok){const b=await r.a
 
 function finishParams(f){return {gloss:{metalness:0,roughness:.28,clearcoat:1,clearcoatRoughness:.03},metallic:{metalness:.55,roughness:.35,clearcoat:1,clearcoatRoughness:.03,normalMap:FLAKE,normalScale:new THREE.Vector2(.08,.08)},
   candy:{metalness:.85,roughness:.2,clearcoat:1,clearcoatRoughness:.015,normalMap:FLAKE,normalScale:new THREE.Vector2(.06,.06)},pearl:{metalness:.25,roughness:.3,clearcoat:1,iridescence:1,iridescenceIOR:1.5,iridescenceThicknessRange:[180,520]},
-  flake:{metalness:.75,roughness:.36,clearcoat:1,clearcoatRoughness:.02,normalMap:FLAKE,normalScale:new THREE.Vector2(.5,.5)},matte:{metalness:.04,roughness:.86},satin:{metalness:.15,roughness:.5,clearcoat:.3,clearcoatRoughness:.4},
+  flake:{metalness:.75,roughness:.36,clearcoat:1,clearcoatRoughness:.02,normalMap:FLAKE,normalScale:new THREE.Vector2(.35,.35)},matte:{metalness:.04,roughness:.86},satin:{metalness:.15,roughness:.5,clearcoat:.3,clearcoatRoughness:.4},
   chrome:{metalness:1,roughness:.06,envMapIntensity:1.15},blackchrome:{metalness:1,roughness:.1},inox:{metalness:1,roughness:.2},brushed:{metalness:1,roughness:.3},polished:{metalness:1,roughness:.12},titanium:{metalness:1,roughness:.2,iridescence:1,iridescenceIOR:2.1,iridescenceThicknessRange:[260,900]},
-  ceramic:{metalness:.15,roughness:.6,clearcoat:.15},wrinkle:{metalness:.05,roughness:.9,normalMap:GRAIN,normalScale:new THREE.Vector2(.9,.9)},leather:{metalness:0,roughness:.5,clearcoat:.2,clearcoatRoughness:.5,sheen:.3,normalMap:GRAIN,normalScale:new THREE.Vector2(.4,.4)}}[f]||{};}
+  ceramic:{metalness:.15,roughness:.6,clearcoat:.15},rubber:{metalness:0,roughness:.9,sheen:.18,sheenRoughness:.85,sheenColor:new THREE.Color(0x1c1c1c),envMapIntensity:.6,normalMap:GRAIN,normalScale:new THREE.Vector2(.2,.2)},
+  glass:{metalness:0,roughness:.03,transparent:true,opacity:.3},lens:{metalness:0,roughness:.08,clearcoat:1,clearcoatRoughness:.02},powder:{metalness:.6,roughness:.46,clearcoat:.2,clearcoatRoughness:.4},wrinkle:{metalness:.05,roughness:.9,normalMap:GRAIN,normalScale:new THREE.Vector2(.9,.9)},leather:{metalness:0,roughness:.72,clearcoat:.06,clearcoatRoughness:.65,sheen:.25,sheenRoughness:.7,sheenColor:new THREE.Color(0x2a2522),normalMap:GRAIN,normalScale:new THREE.Vector2(.4,.4)}}[f]||{};}
 
 /* materiali fotorealistici (PBR) per i modelli di serie, riconosciuti dal nome del materiale: cromature lucide ma non a specchio perfetto,
    vernici con trasparente (clearcoat), gomma opaca con micro-rugosità, pelle con lucentezza morbida (sheen). Le texture del modello restano tutte */
@@ -497,7 +512,21 @@ const PBR_RX={glass:/glass|vetro|lens|lente|miror|mirror|transp/i,rubber:/tire|t
  chrome:/chrom|cromo|silver|nise|inox|stainless|steel|acciaio|med__|polish/i,paint:/body|paint|tank|serbat|fender|paraf|livery|vernic|carroz|hpolice|roadking_mc|roadking_grey|dyna_grey|cover_material|fairing|carena|white__prim/i,
  leather:/leather|seat|sella|pelle|saddle/i,alu:/\balu|alloy|brushed|spazzol|cast\b/i};
 function toPhysical(m){if(m.isMeshPhysicalMaterial)return m;const p=new THREE.MeshPhysicalMaterial();THREE.MeshStandardMaterial.prototype.copy.call(p,m);p.defines={STANDARD:'',PHYSICAL:''};p.name=m.name;p.userData={...m.userData};return p;}
-function upgradeMat(m,uv){if(!m||!m.isMeshStandardMaterial||m.userData.__pbr)return m;const n=m.name||'',c=m.color,lum=c?(c.r+c.g+c.b)/3:.5;let o=m;
+/* finitura del catalogo applicata a un materiale (copie dei vettori, emissione delle lenti, trasparenza dei vetri) */
+function applyFin(o,f){const P=finishParams(f);for(const k in P){const v=P[k];o[k]=v&&v.isVector2?v.clone():v;}
+  if(f==='lens'){o.emissive=o.color.clone();o.emissiveIntensity=.32;}if(f==='glass'){o.transparent=true;o.depthWrite=false;}
+  if(/chrome|polished/.test(f))o.envMapIntensity=1.15;if(f==='leather')o.envMapIntensity=.38;o.needsUpdate=true;return o;}
+/* coordinate UV a proiezione cubica (1 unità = 1,5 m) per i modelli senza UV: servono alle scaglie della vernice e alla grana di pelle e gomma */
+function uvCubo(o){const g=o.geometry;if(!g||g.attributes.uv||!g.attributes.position)return;o.updateWorldMatrix(true,false);
+  const p=g.attributes.position,n=p.count,uv=new Float32Array(n*2),M=o.matrixWorld,v=new THREE.Vector3(),a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3(),k=1/1.5;
+  const put=(i,ax)=>{v.fromBufferAttribute(p,i).applyMatrix4(M);uv[i*2]=(ax===0?v.z:v.x)*k;uv[i*2+1]=(ax===1?v.z:v.y)*k;};
+  if(!g.index){for(let t=0;t+2<n;t+=3){a.fromBufferAttribute(p,t).applyMatrix4(M);b.fromBufferAttribute(p,t+1).applyMatrix4(M).sub(a);c.fromBufferAttribute(p,t+2).applyMatrix4(M).sub(a);b.cross(c);
+    const x=Math.abs(b.x),y=Math.abs(b.y),z=Math.abs(b.z),ax=x>=y&&x>=z?0:y>=z?1:2;put(t,ax);put(t+1,ax);put(t+2,ax);}}
+  else{const nn=g.attributes.normal,nm=new THREE.Matrix3().getNormalMatrix(M);for(let i=0;i<n;i++){let ax=1;if(nn){v.fromBufferAttribute(nn,i).applyMatrix3(nm);const x=Math.abs(v.x),y=Math.abs(v.y),z=Math.abs(v.z);ax=x>=y&&x>=z?0:y>=z?1:2;}put(i,ax);}}
+  g.setAttribute('uv',new THREE.BufferAttribute(uv,2));}
+window.__uvCubo=uvCubo;
+function upgradeMat(m,uv){if(!m||!m.isMeshStandardMaterial||m.userData.__pbr)return m;
+  if(m.userData.njd&&m.userData.fin){const o=applyFin(toPhysical(m),m.userData.fin);o.userData.__pbr=1;return o;}const n=m.name||'',c=m.color,lum=c?(c.r+c.g+c.b)/3:.5;let o=m;
   if(PBR_RX.glass.test(n)||m.transparent&&m.opacity<.9){}
   else if(PBR_RX.rubber.test(n)){o=toPhysical(m);o.metalness=0;o.roughness=Math.max(o.roughness??.85,.8);o.sheen=.3;o.sheenRoughness=.85;o.sheenColor=new THREE.Color(0x2a2a2a);if(!o.normalMap&&uv){o.normalMap=GRAIN;o.normalScale=new THREE.Vector2(.18,.18);}}
   else if(PBR_RX.chrome.test(n)||(m.metalness>=.8&&lum>.55&&!m.map)){m.metalness=1;m.roughness=Math.min(Math.max(m.roughness??.08,.05),.12);m.envMapIntensity=Math.max(m.envMapIntensity??1,1.15);}
@@ -508,14 +537,23 @@ function upgradeMat(m,uv){if(!m||!m.isMeshStandardMaterial||m.userData.__pbr)ret
 function pbrUpgrade(root){const uses=new Map();root.traverse(o=>{if(!o.isMesh)return;for(const m of [].concat(o.material)){if(!uses.has(m))uses.set(m,{uv:true});if(!o.geometry.attributes.uv)uses.get(m).uv=false;}});
   const map=new Map();for(const [m,u] of uses)map.set(m,upgradeMat(m,u.uv));
   root.traverse(o=>{if(!o.isMesh)return;o.material=Array.isArray(o.material)?o.material.map(m=>map.get(m)||m):(map.get(o.material)||o.material);});
-  map.forEach((v,k)=>{if(v!==k)k.dispose();});}
+  map.forEach((v,k)=>{if(v!==k)k.dispose();});
+  // modelli colorati in fabbrica: UV per le finiture con dettaglio (anche quelle scelte dopo in Configura); in modalità leggera solo dove servono subito
+  root.updateMatrixWorld(true);root.traverse(o=>{if(!o.isMesh||o.geometry.attributes.uv)return;const ms=[].concat(o.material);if(!ms.some(x=>x&&x.userData&&x.userData.njd))return;if(SAFE&&!ms.some(x=>x&&x.normalMap))return;uvCubo(o);});}
 /* modelli con molti pezzi che condividono lo stesso materiale: ogni pezzo diventa selezionabile e verniciabile a sé */
 function splitMats(root){const ms=[],use=new Map();root.traverse(o=>{if(o.isMesh&&!Array.isArray(o.material)){ms.push(o);use.set(o.material,(use.get(o.material)||0)+1);}});
-  if(ms.length<8)return;const used={};ms.forEach(o=>{if(use.get(o.material)<3)return;let nm=(o.name||o.parent&&o.parent.name||'pezzo').replace(/[_.]+/g,' ').replace(/\s+\d+$/,'').trim()||'pezzo';used[nm]=(used[nm]||0)+1;if(used[nm]>1)nm+=' '+used[nm];const c=o.material.clone();c.name=nm;o.material=c;});
+  if(ms.length<8)return;const used={};
+  /* modelli colorati in fabbrica: ogni pezzo ha il suo materiale (copia di quello del suo tipo) e un nome leggibile con la posizione sulla moto,
+     così dall'elenco «Tutti i pezzi» e con «Tutto lo stesso materiale» si sceglie il singolo pezzo, non tutto il blocco (come negli altri modelli) */
+  {root.updateMatrixWorld(true);const B=new THREE.Box3().setFromObject(root),cx=(B.min.x+B.max.x)/2,cz=(B.min.z+B.max.z)/2,L=B.max.x-B.min.x,bb=new THREE.Box3(),c=new THREE.Vector3(),n={};
+    const pos=o=>{bb.setFromObject(o);bb.getCenter(c);const x=(c.x-cx)/L,z=c.z-cz;return (x>.17?'anteriore':x<-.17?'posteriore':'centrale')+(z>.05?' destra':z<-.05?' sinistra':'');};
+    ms.forEach(o=>{const m=o.material;if(!m.userData.njd||use.get(m)<2)return;const [base,tag]=m.name.split('__');const k=base+' · '+pos(o);n[k]=(n[k]||0)+1;
+      const c2=m.clone();c2.name=k+(n[k]>1?' '+n[k]:'')+'__'+(tag||'');o.material=c2;});}
+  ms.forEach(o=>{if(use.get(o.material)<3||o.material.userData.njd)return;let nm=(o.name||o.parent&&o.parent.name||'pezzo').replace(/[_.]+/g,' ').replace(/\s+\d+$/,'').trim()||'pezzo';used[nm]=(used[nm]||0)+1;if(used[nm]>1)nm+=' '+used[nm];const c=o.material.clone();c.name=nm;o.material=c;});
   /* modelli senza materiali reali (bianco "argilla"): finiture plausibili dal nome del pezzo, altrimenti metallo satinato */
   const K=[[/chrom|cromo|inox|steel|exhaust|pipe|muffler|scarico/i,{color:0xe8eaed,metalness:1,roughness:.08}],[/gum|tire|tyre|rubber|gomm|pneu/i,{color:0x161616,metalness:0,roughness:.85}],[/glass|vetro|lens/i,{color:0xdde6ee,metalness:0,roughness:.05,transparent:true,opacity:.45}],[/leather|seat|sella|pelle/i,{color:0x3a2416,metalness:0,roughness:.6}],[/black|nero|frame|telaio/i,{color:0x1b1c1e,metalness:.3,roughness:.45}],[/body|paint|tank|serbat|fender|paraf/i,{color:0x15171b,metalness:.6,roughness:.18}]];
   root.updateMatrixWorld(true);const RB=new THREE.Box3().setFromObject(root),RH=RB.max.y-RB.min.y,bb=new THREE.Box3(),bs=new THREE.Vector3();
-  ms.forEach(o=>{const m=o.material;if(Array.isArray(m)||m.map||!m.color)return;const c=m.color,l=(c.r+c.g+c.b)/3,cx=Math.max(c.r,c.g,c.b),cn=Math.min(c.r,c.g,c.b);if(l<.55||cx-cn>.08)return;let r=K.find(k=>k[0].test(m.name));
+  ms.forEach(o=>{const m=o.material;if(Array.isArray(m)||m.map||!m.color||m.userData.njd)return;const c=m.color,l=(c.r+c.g+c.b)/3,cx=Math.max(c.r,c.g,c.b),cn=Math.min(c.r,c.g,c.b);if(l<.55||cx-cn>.08)return;let r=K.find(k=>k[0].test(m.name));
    if(!r){bb.setFromObject(o);bb.getSize(bs);const q=bs.x/bs.y;if(bb.min.y-RB.min.y<.03*RH&&bs.y>.3*RH&&q>.8&&q<1.25&&bs.z<.35*bs.y)r=K[1];}Object.assign(m,r?{metalness:r[1].metalness,roughness:r[1].roughness,transparent:!!r[1].transparent,opacity:r[1].opacity??1}:{metalness:.85,roughness:.3});m.color.set(r?r[1].color:0xc4c8ce);m.needsUpdate=true;});}
 function register(root){parts=new Map();
   root.traverse(o=>{if(!o.isMesh||o.userData.vuoto)return;o.castShadow=o.receiveShadow=true;
@@ -535,7 +573,7 @@ function separaRuote(){
     if(!o.isMesh||Array.isArray(o.material))continue;
     const p=old.get(o),orig=p?p.orig:o.material,cur=o.material,mk=orig.uuid+'|'+cur.uuid+'|'+pos;let mm=made.get(mk);
     if(!mm){const r=role==='T'?'Pneumatico':((RUOLO.find(x=>x[0].test(orig.name||''))||[0,'Cerchio'])[1]);let nm=r+' '+LAB[pos];
-      const u=names.get(nm);if(u&&u!==orig.uuid)nm+=' · '+(nice(orig.name||'')||'pezzo');names.set(nm,orig.uuid);
+      {const base=nm;let k=2;while(names.has(nm)&&names.get(nm)!==orig.uuid)nm=base+' '+(k++);}names.set(nm,orig.uuid);
       const oc=orig.clone();oc.name=nm;oc.userData.cat='Ruota '+LAB[pos];const cc=cur===orig?oc:cur.clone();cc.name=nm;cc.userData.cat=oc.userData.cat;mm={oc,cc,p};made.set(mk,mm);}
     o.material=mm.cc;o.userData.ruota=pos;o.userData.parteRuota=role==='T'?'gomma':'cerchio';o.userData.origMat=mm.cc;
     const c=WC&&WC[pos==='ant'?'front':'rear'];if(c){o.updateMatrixWorld(true);o.userData.pivotL=o.worldToLocal(c.c.clone());}}
@@ -544,11 +582,12 @@ function separaRuote(){
   for(const p of parts.values()){const mm=[...made.values()].find(x=>x.cc===p.cur);
     if(mm){p.orig=mm.oc;if(mm.p){p.color=mm.p.color;p.finish=mm.p.finish;if(hid.has(mm.p.name))hidden.add(p.name);}continue;}
     const op=oldCur.get(p.cur);if(op&&op.orig!==p.orig){p.orig=op.orig;p.color=op.color;p.finish=op.finish;}}
-  buildParts();invalidate();shadowDirty=true;console.info('ruote separate in '+Math.round(performance.now()-t0)+' ms:',[...parts.values()].filter(p=>/^Ruota /.test(p.cat)).map(p=>p.name).join(', '));
+  buildParts();try{CFG.ricollegaSel&&CFG.ricollegaSel();}catch(e){}invalidate();shadowDirty=true;console.info('ruote separate in '+Math.round(performance.now()-t0)+' ms:',[...parts.values()].filter(p=>/^Ruota /.test(p.cat)).map(p=>p.name).join(', '));
   return made.size;}
-function setPartMat(p,m){p.cur=m;for(const [o,i] of p.meshes){if(Array.isArray(o.material))o.material[i]=m;else o.material=m;}}
+function setPartMat(p,m){p.cur=m;for(const [o,i] of p.meshes){if(Array.isArray(o.material))o.material[i]=m;else o.material=m;if(m.normalMap&&!o.geometry.attributes.uv)uvCubo(o);}}
 function repaint(p,color,finish){p.color=color;p.finish=finish;
   if(finish==='orig'&&color==='#'+p.orig.color?.getHexString?.()){setPartMat(p,p.orig);return;}
+  if(finish==='orig'&&p.orig.userData&&p.orig.userData.njd){const m=p.orig.clone();m.color.set(color);if(p.orig.userData.fin==='lens')m.emissive.set(color);m.needsUpdate=true;setPartMat(p,m);return;}
   const o=p.orig;const m=new THREE.MeshPhysicalMaterial({name:o.name,map:null,normalMap:o.normalMap||null,aoMap:o.aoMap||null,transparent:o.transparent,opacity:o.opacity,side:o.side,alphaTest:o.alphaTest,
     metalness:o.metalness??0,roughness:o.roughness??.5,metalnessMap:o.metalnessMap||null,roughnessMap:o.roughnessMap||null});
   // conserva la texture solo se il pezzo ha dettagli (decalcomanie/scritte): la tinta la moltiplica
@@ -569,7 +608,7 @@ async function partBuffer(id){
   window.__GLB=window.__GLB||{};const k='p_'+id;if(!window.__GLB[k])await loadScript('parts/'+id+'.js');
   const bin=atob(window.__GLB[k]);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[k];return u.buffer;}
 window.__loadPart=id=>loadPart(id);
-async function loadPart(id){if(!PARTCACHE[id]){const buf=await partBuffer(id);const g=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));PARTCACHE[id]=g.scene;}return PARTCACHE[id];}
+async function loadPart(id){if(!PARTCACHE[id]){const buf=await partBuffer(id);const g=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));try{pbrUpgrade(g.scene);}catch(e){console.warn('materiali ricambio',e);}PARTCACHE[id]=g.scene;}return PARTCACHE[id];}
 async function modelBuffer(id){
   {const b=await tauriGlb('models',id);if(b)return b;}
   if(MOBILE){const b=((await ktxPronto())&&await fetchGlb('models/k/'+id+'.glb'))||await fetchGlb('models/m/'+id+'.glb');if(b)return b;}
@@ -620,7 +659,7 @@ $('exp').oninput=()=>setEnv(envK);$('lrot').oninput=e=>{lrot=+e.target.value;pla
 $('sFinish').innerHTML=FIN.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
 SW.forEach(([n,c,f])=>{const b=document.createElement('button');b.title=n;b.style.background=`radial-gradient(circle at 35% 30%,#ffffff55,transparent 45%),${c}`;b.onclick=()=>{if(!selected)return;repaint(parts.get(selected),c,f);syncSel();buildParts();};$('swatch').appendChild(b);});
 function buildParts(){const box=$('plist');box.innerHTML='';const groups={};for(const p of parts.values())(groups[p.cat]=groups[p.cat]||[]).push(p);
-  const order=CATS.map(c=>c[0]).concat(['Altri pezzi']);
+  const order=CATS.map(c=>c[0]);for(const g in groups)if(!order.includes(g)&&g!=='Altri pezzi')order.push(g);order.push('Altri pezzi');
   for(const g of order){if(!groups[g])continue;const h=document.createElement('div');h.className='group';h.textContent=g+' ('+groups[g].length+')';box.appendChild(h);const l=document.createElement('div');l.className='plist';
     groups[g].forEach(p=>{const b=document.createElement('button');b.className=p.name===selected?'on':'';b.innerHTML=`<span class="dot" style="background:${p.color}"></span>${nice(p.name)}${hidden.has(p.name)?' · nascosto':''}`;b.onclick=()=>select(p.name);l.appendChild(b);});box.appendChild(l);}
   const body=bodyParts();$('bodyNote').textContent=body.length?('Carrozzeria di questo modello: '+body.map(p=>nice(p.name)).join(', ')):'';}
@@ -816,7 +855,7 @@ function applyTier(){const q=Q();fullDPR=q.dpr;rt.samples=q.msaa;composer.render
 setEnv('studio');
 if(NOAUTO){const L=document.getElementById('load');L.style.display='flex';$('loadT').innerHTML='Il telefono ha chiuso l\'app per memoria'+(LASTF?' (fase: '+LASTF+')':'')+'.<br>Riparto in modalità leggera.';const b=document.createElement('button');b.className='btn pri';b.style.marginTop='14px';b.textContent='Carica la moto';b.onclick=()=>{b.remove();try{localStorage.setItem('njd_avvio','in_corso');}catch(e){}document.querySelector('.mcard').click();};L.appendChild(b);try{localStorage.setItem('njd_avvio','ok');}catch(e){}}
 else document.querySelector('.mcard').click();
-window.__composer=composer;window.__cg={OF,invalidate,loadModel,MODELS,cur:()=>cur,parts:()=>parts,camera,setEnv,select,repaint,controls,scene,renderer,THREE,getModel:()=>model,catOfMesh:o=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';}};
+window.__composer=composer;window.__cg={OF,invalidate,loadModel,MODELS,renderShot,VISTE,cur:()=>cur,parts:()=>parts,camera,setEnv,select,repaint,controls,scene,renderer,THREE,getModel:()=>model,catOfMesh:o=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';}};
 </script>
 <script>/* programma desktop: manuali installati e link esterni si aprono con le app di Windows */
 if(window.__TAURI__){document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const h=a.getAttribute('href')||'';

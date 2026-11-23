@@ -7,10 +7,16 @@ export function islands(mesh) {
   if (mesh.userData.isl) return mesh.userData.isl; let g = mesh.geometry;
   if (mesh.userData.zone) { if (g.index) { g = g.toNonIndexed(); mesh.geometry.dispose(); mesh.geometry = g; } return mesh.userData.isl = new Int32Array(g.attributes.position.count / 3); }
   if (g.index) { g = g.toNonIndexed(); mesh.geometry.dispose(); mesh.geometry = g; }
+  // due triangoli sono dello stesso pezzo solo se hanno un vertice nella stessa posizione (a meno di 1/4000 di unità). La chiave numerica veloce
+  // può coincidere per posizioni diverse: ogni coincidenza si verifica sulle coordinate vere, altrimenti si passa a una chiave esatta.
+  // (Prima le coincidenze saldavano pezzi lontani: es. la molla dell'ammortizzatore con un pezzo di telaio)
   const p = g.attributes.position.array, nT = p.length / 9, par = new Int32Array(nT); for (let i = 0; i < nT; i++) par[i] = i;
-  const f = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }, map = new Map();
-  for (let v = 0; v < p.length / 3; v++) { const k = (Math.round(p[v * 3] * 4000) * 73856093) ^ (Math.round(p[v * 3 + 1] * 4000) * 19349663) ^ (Math.round(p[v * 3 + 2] * 4000) * 83492791), t = (v / 3) | 0, o = map.get(k);
-    if (o === undefined) map.set(k, t); else { const a = f(o), b = f(t); if (a !== b) par[a] = b; } }
+  const f = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }, map = new Map(), esatta = new Map(), q = x => Math.round(x * 4000);
+  const unisci = (a, b) => { a = f(a); b = f(b); if (a !== b) par[a] = b; };
+  for (let v = 0; v < p.length / 3; v++) { const x = q(p[v * 3]), y = q(p[v * 3 + 1]), z = q(p[v * 3 + 2]), k = (x * 73856093) ^ (y * 19349663) ^ (z * 83492791), t = (v / 3) | 0, o = map.get(k);
+    if (o === undefined) { map.set(k, v); continue; }
+    if (q(p[o * 3]) === x && q(p[o * 3 + 1]) === y && q(p[o * 3 + 2]) === z) { unisci((o / 3) | 0, t); continue; }
+    const ks = x + ',' + y + ',' + z, o2 = esatta.get(ks); if (o2 === undefined) esatta.set(ks, v); else unisci((o2 / 3) | 0, t); }
   const r = new Int32Array(nT); for (let i = 0; i < nT; i++) r[i] = f(i); return mesh.userData.isl = r;
 }
 function matInfo(m) { const c = m.color || new THREE.Color(1, 1, 1), hsl = {}; c.getHSL(hsl);
@@ -191,4 +197,50 @@ export function presplitScan(model) {
     const m = new THREE.Mesh(ng, mat); m.castShadow = m.receiveShadow = true; m.userData.zone = Z[z]; m.name = NAMES[z]; model.add(m); out.push(m); }
   for (const q of parts) { q.m.parent && q.m.parent.remove(q.m); q.m.geometry.dispose(); }
   model.userData.scan = { Wf, Wr }; model.userData.__idx = null; model.updateMatrixWorld(true); return out;
+}
+
+/* ---------- componente fisico del pezzo toccato ----------
+   Il pezzo e i pezzi montati con lui: a contatto (entro pochi millimetri), non più grandi di lui e senza allargare il gruppo oltre il pezzo stesso.
+   Esempi: molla dell'ammortizzatore → ammortizzatore intero (corpo, attacchi, bulloni); vite → vite con rondella e dado; serbatoio → serbatoio,
+   tappo e fregi. Mai telaio, forcellone o altri componenti vicini. Vale per tutti i materiali (un componente ha spesso pezzi di materiali diversi). */
+const _tris = new WeakMap();
+function trisOf(mesh) { let m = _tris.get(mesh); const isl = islands(mesh); if (m && m.isl === isl) return m.map; const map = new Map();
+  for (let t = 0; t < isl.length; t++) { let a = map.get(isl[t]); if (!a) map.set(isl[t], a = []); a.push(t); } _tris.set(mesh, { isl, map }); return map; }
+export function componente(model, mesh, id) {
+  const idx = buildIndex(model); model.updateMatrixWorld(true);
+  const seed = idx.isl.find(I => I.mesh === mesh && I.id === id); if (!seed) return [{ mesh, id }];
+  const dS = seed.s.length(), grande = dS > .45, r = Math.min(.006, Math.max(.0025, .012 * dS));
+  // griglia di occupazione (chiave numerica esatta) attorno al pezzo
+  const R = seed.box.clone().expandByScalar(grande ? .2 * dS : .5), O = R.min.clone(), K = 4096, occ = new Set(), v = new THREE.Vector3(), A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+  const cell = q => { const x = Math.floor((q.x - O.x) / r), y = Math.floor((q.y - O.y) / r), z = Math.floor((q.z - O.z) / r); return x < 1 || y < 1 || z < 1 || x > K - 2 || y > K - 2 || z > K - 2 ? -1 : (x * K + y) * K + z; };
+  // punti sulle superfici del pezzo (anche dentro i triangoli grandi), al passo della griglia
+  function punti(I, fn) { const m = I.mesh, p = m.geometry.attributes.position, mw = m.matrixWorld, T = trisOf(m).get(I.id) || [], dense = T.length < 20000;
+    for (const t of T) { A.fromBufferAttribute(p, t * 3).applyMatrix4(mw); B.fromBufferAttribute(p, t * 3 + 1).applyMatrix4(mw); C.fromBufferAttribute(p, t * 3 + 2).applyMatrix4(mw);
+      const n = dense ? Math.min(12, Math.max(1, Math.ceil(Math.max(A.distanceTo(B), B.distanceTo(C), C.distanceTo(A)) / r))) : 1;
+      for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) { const u = i / n, w = j / n; v.set(A.x + u * (B.x - A.x) + w * (C.x - A.x), A.y + u * (B.y - A.y) + w * (C.y - A.y), A.z + u * (B.z - A.z) + w * (C.z - A.z)); if (fn(v)) return true; } }
+    return false; }
+  const segna = I => punti(I, q => { const k = cell(q); if (k >= 0) occ.add(k); return false; });
+  const tocca = I => punti(I, q => { const k = cell(q); if (k < 0) return false; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) if (occ.has(k + (dx * K + dy) * K + dz)) return true; return false; });
+  // sagoma del pezzo toccato: cilindro attorno al suo asse principale (molla → asse dell'ammortizzatore, vite → asse della vite)
+  const S = []; punti(seed, q => { S.push(q.x, q.y, q.z); return false; }); const ns = S.length / 3, mu = new THREE.Vector3();
+  for (let i = 0; i < S.length; i += 3) mu.x += S[i] / ns, mu.y += S[i + 1] / ns, mu.z += S[i + 2] / ns;
+  const Cv = [0, 0, 0, 0, 0, 0]; for (let i = 0; i < S.length; i += 3) { const x = S[i] - mu.x, y = S[i + 1] - mu.y, z = S[i + 2] - mu.z; Cv[0] += x * x; Cv[1] += x * y; Cv[2] += x * z; Cv[3] += y * y; Cv[4] += y * z; Cv[5] += z * z; }
+  let ax = new THREE.Vector3(1, .3, .2).normalize(); for (let it = 0; it < 40; it++) { const n2 = new THREE.Vector3(Cv[0] * ax.x + Cv[1] * ax.y + Cv[2] * ax.z, Cv[1] * ax.x + Cv[3] * ax.y + Cv[4] * ax.z, Cv[2] * ax.x + Cv[4] * ax.y + Cv[5] * ax.z); if (n2.lengthSq() < 1e-18) break; ax = n2.normalize(); }
+  const dist = [], lung = []; for (let i = 0; i < S.length; i += 3) { const x = S[i] - mu.x, y = S[i + 1] - mu.y, z = S[i + 2] - mu.z, t = x * ax.x + y * ax.y + z * ax.z; lung.push(Math.abs(t)); dist.push(Math.sqrt(Math.max(0, x * x + y * y + z * z - t * t))); }
+  dist.sort((a, b) => a - b); lung.sort((a, b) => a - b); const rs = dist[Math.floor(dist.length * .95)] || .01, hs = lung[Math.floor(lung.length * .95)] || .01;
+  const Re = Math.max(1.5 * rs, rs + .012), He = Math.max(1.6 * hs, hs + .2);
+  const dentro = q => { const x = q.x - mu.x, y = q.y - mu.y, z = q.z - mu.z, t = x * ax.x + y * ax.y + z * ax.z; return Math.abs(t) <= He && x * x + y * y + z * z - t * t <= Re * Re; };
+  const nellaSagoma = I => { let a = 0, b = 0; punti(I, q => { b++; if (dentro(q)) a++; return false; }); return b > 0 && a / b >= .85; };
+  // pezzo grande (serbatoio, parafango, telaio): solo i piccoli pezzi montati su di lui (tappi, fregi, viti), mai altri componenti
+  const maxI = grande ? .15 * dS : .5, maxU = grande ? 1.15 * dS : .6;
+  const comp = [seed], U = seed.box.clone(), Ue = new THREE.Box3(), U2 = new THREE.Box3(), sz = new THREE.Vector3(); segna(seed);
+  const cand = idx.isl.filter(I => I !== seed && I.mesh.visible && !I.mesh.userData.acc && !I.mesh.userData.accPart && !I.mesh.userData.vuoto && I.box.intersectsBox(R) && I.s.length() <= maxI)
+    .sort((a, b) => a.c.distanceToSquared(seed.c) - b.c.distanceToSquared(seed.c));
+  const preso = new Set(), scarto = new Set(); let cambiato = true;
+  for (let giro = 0; cambiato && giro < 10 && comp.length < 300; giro++) { cambiato = false;
+    for (const I of cand) { if (preso.has(I) || scarto.has(I)) continue; Ue.copy(U).expandByScalar(2 * r); if (!I.box.intersectsBox(Ue)) continue;
+      U2.copy(U).union(I.box); if (U2.getSize(sz).length() > maxU) continue;
+      if (!tocca(I)) continue; if (!grande && !nellaSagoma(I)) { scarto.add(I); continue; }
+      preso.add(I); comp.push(I); segna(I); U.copy(U2); cambiato = true; } }
+  return comp.map(I => ({ mesh: I.mesh, id: I.id }));
 }

@@ -99,16 +99,7 @@ export function kitFor(it) {
 }
 
 /* ---------- isole: pezzi fisicamente separati dentro una mesh ---------- */
-function islands(mesh) {
-  if (mesh.userData.isl) return mesh.userData.isl; let g = mesh.geometry;
-  if (mesh.userData.zone) { if (g.index) { g = g.toNonIndexed(); mesh.geometry.dispose(); mesh.geometry = g; } return mesh.userData.isl = new Int32Array(g.attributes.position.count / 3); }
-  if (g.index) { g = g.toNonIndexed(); mesh.geometry.dispose(); mesh.geometry = g; }
-  const p = g.attributes.position.array, nT = p.length / 9, par = new Int32Array(nT); for (let i = 0; i < nT; i++) par[i] = i;
-  const f = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }, map = new Map();
-  for (let v = 0; v < p.length / 3; v++) { const k = (Math.round(p[v * 3] * 4000) * 73856093) ^ (Math.round(p[v * 3 + 1] * 4000) * 19349663) ^ (Math.round(p[v * 3 + 2] * 4000) * 83492791), t = (v / 3) | 0, o = map.get(k);
-    if (o === undefined) map.set(k, t); else { const a = f(o), b = f(t); if (a !== b) par[a] = b; } }
-  const r = new Int32Array(nT); for (let i = 0; i < nT; i++) r[i] = f(i); return mesh.userData.isl = r;
-}
+const islands = ST.islands; // un solo calcolo esatto delle isole per tutto il programma (stock.js)
 function subGeo(g, keep) { const out = new THREE.BufferGeometry(), nT = keep.length;
   for (const [n, a] of Object.entries(g.attributes)) { const s = a.itemSize, arr = new a.array.constructor(nT * 3 * s); let o = 0; for (const t of keep) { arr.set(a.array.subarray(t * 3 * s, (t * 3 + 3) * s), o); o += 3 * s; } out.setAttribute(n, new THREE.BufferAttribute(arr, s, a.normalized)); }
   return out; }
@@ -262,9 +253,10 @@ export function initConfig(ctx) {
 
   /* ---------- selezione ---------- */
   let lastHit = null;
-  function meshesOf(s) { if (!s) return []; if (s.kind === 'piece') return [s.obj]; if (s.kind === 'part') { const p = parts().get(s.name); return p ? p.meshes.map(m => m[0]).filter(o => o.visible) : []; } return [s.obj]; }
-  function nameOf(s) { if (!s) return ''; if (s.kind === 'piece') return s.obj.userData.zone ? s.obj.name : 'Pezzo selezionato'; if (s.kind === 'part') return ctx.nice(s.name); return s.obj.userData.accName || s.obj.name || 'Accessorio'; }
-  function catOf(s) { if (!s) return ''; if (s.kind === 'piece') { const p = s.part && parts().get(s.part); return (p ? p.cat + ' · ' : '') + 'solo questo pezzo (tocca «Gruppo» per tutto il materiale ' + ctx.nice(s.part || '') + ')'; } if (s.kind === 'part') { const p = parts().get(s.name); return p ? p.cat : ''; } const it = s.obj.userData.item; return it ? it.cat : (s.obj.userData.accCat || 'Accessorio'); }
+  function meshesOf(s) { if (!s) return []; if (s.kind === 'comp') return s.objs.filter(o => o.visible); if (s.kind === 'piece') return [s.obj]; if (s.kind === 'part') { const p = parts().get(s.name); return p ? p.meshes.map(m => m[0]).filter(o => o.visible) : []; } return [s.obj]; }
+  function nameOf(s) { if (!s) return ''; if (s.kind === 'comp') return 'Componente intero · ' + s.objs.length + (s.objs.length === 1 ? ' pezzo' : ' pezzi'); if (s.kind === 'piece') return s.obj.userData.zone ? s.obj.name : 'Pezzo selezionato'; if (s.kind === 'part') return ctx.nice(s.name); return s.obj.userData.accName || s.obj.name || 'Accessorio'; }
+  function catOf(s) { if (!s) return ''; if (s.kind === 'comp') { const p = s.part && parts().get(s.part); return (p ? p.cat + ' · ' : '') + 'il pezzo toccato e quelli montati con lui (tocca «Gruppo» per tornare al pezzo singolo)'; }
+    if (s.kind === 'piece') { const p = s.part && parts().get(s.part); return (p ? p.cat + ' · ' : '') + 'solo questo pezzo (tocca «Gruppo» per il componente intero: il pezzo e quelli montati con lui)'; } if (s.kind === 'part') { const p = parts().get(s.name); return p ? p.cat : ''; } const it = s.obj.userData.item; return it ? it.cat : (s.obj.userData.accCat || 'Accessorio'); }
   function select(s) { sel = s; wheelOfSel(s); outline.selectedObjects = meshesOf(s); renderPanel(); syncQ(); invalidate(); if (s && ctx.onSelect) ctx.onSelect(s); }
   // toccando un pezzo di una ruota, il pannello Ruote lavora su quella ruota e su quel componente (mai sull'altra)
   function wheelOfSel(s) { if (!s) return; let o = null, nm = '';
@@ -289,6 +281,32 @@ export function initConfig(ctx) {
   function hidePiece(o, hid) { const v0 = o.visible; o.visible = !hid; record((hid ? 'elimina ' : 'mostra ') + 'pezzo singolo', () => o.visible = v0, () => o.visible = !hid); if (hid) select(null); afterChange(); }
   function resetPiece(o) { const v0 = o.visible, m0 = o.material, m1 = o.userData.origMat || m0; o.visible = true; o.material = m1; record('ripristina pezzo singolo', () => { o.visible = v0; o.material = m0; }, () => { o.visible = true; o.material = m1; }); afterChange(); }
   function selectAcc(obj) { select({ kind: 'acc', obj }); }
+  /* «Gruppo»: dal pezzo toccato al componente fisico intero (il pezzo e quelli montati con lui: es. molla → ammortizzatore completo,
+     vite → vite con rondella e dado). Mai i pezzi che hanno solo lo stesso materiale */
+  /* la selezione resta sempre su pezzi veri: se un'operazione automatica (es. la separazione delle ruote subito dopo il caricamento) ha spostato
+     il pezzo toccato in una nuova mesh, la selezione si ricollega al pezzo che ora sta nello stesso punto */
+  const vivo = o => { if (!o || !o.visible || o.userData.vuoto) return false; const M = ctx.getModel(); for (let a = o; a; a = a.parent) if (a === M) return true; return false; };
+  function ricollegaSel() { if (!sel || (sel.kind !== 'piece' && sel.kind !== 'comp')) return true; const ok = sel.kind === 'piece' ? vivo(sel.obj) : sel.objs.every(vivo); if (ok) return true;
+    if (!lastHit || !lastHit.point || !ctx.camera) { select(null); return false; } const era = sel.kind, rc = new THREE.Raycaster(), cam = ctx.camera;
+    rc.set(cam.position, lastHit.point.clone().sub(cam.position).normalize()); const h = rc.intersectObject(ctx.getModel(), true).find(x => x.object.visible && !x.object.userData.acc && !x.object.userData.accPart && !x.object.userData.vuoto);
+    if (!h || h.point.distanceTo(lastHit.point) > .02) { select(null); return false; }
+    selectAt(h, Array.isArray(h.object.material) ? null : (h.object.material && h.object.material.name) || null); if (era === 'comp' && sel && sel.kind === 'piece') selectComp(); return !!sel; }
+  function selectComp() { if (!sel || sel.kind !== 'piece') return; if (!ricollegaSel() || !sel || sel.kind !== 'piece') return; const M = ctx.getModel(), seed = sel.obj; if (!M || !seed || Array.isArray(seed.material)) return;
+    const il0 = islands(seed); let sid = il0[0]; if (lastHit && lastHit.object === seed && lastHit.faceIndex != null && il0[lastHit.faceIndex] !== undefined) sid = il0[lastHit.faceIndex];
+    const L = ST.componente(M, seed, sid), per = new Map(); L.forEach(({ mesh, id }) => { if (!per.has(mesh)) per.set(mesh, []); per.get(mesh).push(id); });
+    const objs = []; let semeObj = null;
+    for (const [m, ids] of per) { const il = islands(m); if (ids.length === 1 && il.every(x => x === ids[0])) { objs.push(m); if (m === seed) semeObj = m; continue; } // già un pezzo a sé
+      const pcs = splitIslands(m, ids, ctx.registerMesh); if (m === seed) semeObj = pcs.find(pc => pc.userData.islId === sid) || pcs[0]; objs.push(...pcs); }
+    objs.forEach(o => { if (!o.userData.origMat) o.userData.origMat = o.material; });
+    select({ kind: 'comp', objs, seed: semeObj || objs[0], part: sel.part });
+    toast(objs.length > 1 ? 'Componente intero: ' + objs.length + ' pezzi (il pezzo toccato e quelli montati con lui)' : 'Questo pezzo non ha altri pezzi montati con lui: il componente è il pezzo stesso'); }
+  function hideComp(objs, hid) { const v0 = objs.map(o => o.visible); objs.forEach(o => o.visible = !hid); record((hid ? 'elimina ' : 'mostra ') + 'componente', () => objs.forEach((o, i) => o.visible = v0[i]), () => objs.forEach(o => o.visible = !hid)); if (hid) select(null); afterChange(); }
+  function resetComp(objs) { const s0 = objs.map(o => [o.visible, o.material]); objs.forEach(o => { o.visible = true; o.material = o.userData.origMat || o.material; }); const s1 = objs.map(o => [o.visible, o.material]);
+    record('ripristina componente', () => objs.forEach((o, i) => { o.visible = s0[i][0]; o.material = s0[i][1]; }), () => objs.forEach((o, i) => { o.visible = s1[i][0]; o.material = s1[i][1]; })); afterChange(); }
+  function paintComp(objs, color, finish) { const before = new Map(), after = new Map();
+    objs.forEach(c => { if (!c.isMesh || Array.isArray(c.material)) return; if (!c.userData.origMat) c.userData.origMat = c.material; before.set(c, c.material);
+      const m0 = c.material, m = new THREE.MeshPhysicalMaterial({ name: m0.name || 'pezzo', color: new THREE.Color(color), normalMap: m0.normalMap || null, side: m0.side }); Object.assign(m, ctx.finishParams(finish)); c.material = m; if (m.normalMap && window.__uvCubo) window.__uvCubo(c); after.set(c, m); });
+    record('colore componente', () => before.forEach((m, c) => c.material = m), () => after.forEach((m, c) => c.material = m)); afterChange(); }
 
   /* ---------- operazioni con cronologia ---------- */
   function partState(p) { return { mat: p.cur, color: p.color, finish: p.finish, hid: ctx.hidden.has(p.name) }; }
@@ -302,8 +320,9 @@ export function initConfig(ctx) {
   function resetPart(name) { const p = parts().get(name); if (!p) return; const a = partState(p); setPartState(p, { mat: p.orig, color: '#' + (p.orig.color ? p.orig.color.getHexString() : '888888'), finish: 'orig', hid: false }); const b = partState(p);
     record('ripristina ' + ctx.nice(name), () => setPartState(p, a), () => setPartState(p, b)); afterChange(); }
   function paintAcc(o, color, finish) { const before = new Map(), after = new Map();
-    o.traverse(c => { if (c.isMesh && !/Lente|LED|Gomma|Vetro|Parabola|Fascia|Policarbonato|Plexi|Pneumatico|Battistrada/i.test((Array.isArray(c.material) ? '' : c.material.name) || '')) { before.set(c, c.material);
-      const m0 = c.material, m = new THREE.MeshPhysicalMaterial({ name: (m0.name || 'pezzo'), color: new THREE.Color(color), normalMap: m0.normalMap || null, side: m0.side }); Object.assign(m, ctx.finishParams(finish)); c.material = m; after.set(c, m); } });
+    // gomme, vetri, lenti, manopole, pedane e sella dei ricambi restano come sono
+    o.traverse(c => { if (c.isMesh && !Array.isArray(c.material) && !/Lente|LED|Gomma|Vetro|Parabola|Fascia|Policarbonato|Plexi|Pneumatico|Battistrada/i.test(c.material.name || '') && !/^(gomma|vetro|fanale|frecce|manopole|pedane|sella)$/.test((c.material.userData && c.material.userData.ruolo) || '')) { before.set(c, c.material);
+      const m0 = c.material, m = new THREE.MeshPhysicalMaterial({ name: (m0.name || 'pezzo'), color: new THREE.Color(color), normalMap: m0.normalMap || null, side: m0.side }); Object.assign(m, ctx.finishParams(finish)); c.material = m; if (m.normalMap && window.__uvCubo) window.__uvCubo(c); after.set(c, m); } });
     record('colore ' + nameOf({ kind: 'acc', obj: o }), () => before.forEach((m, c) => c.material = m), () => after.forEach((m, c) => c.material = m)); afterChange(); }
 
   /* ---------- riepilogo configurazione ---------- */
@@ -657,12 +676,13 @@ export function initConfig(ctx) {
     $('qUndo').title = H.length ? 'Annulla: ' + H[H.length - 1].label : 'Niente da annullare'; $('qRedo').title = R.length ? 'Ripristina: ' + R[R.length - 1].label : 'Niente da ripristinare';
   }
   Q.addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (!b || b.disabled) return; const k = b.dataset.q;
+    if (['focus', 'color', 'del', 'reset'].includes(k) && sel && !ricollegaSel()) return;
     if (k === 'undo') doUndo(); else if (k === 'redo') doRedo(); else if (k === 'none') select(null); else if (k === 'fit') fitAll();
     else if (k === 'focus') focus(meshesOf(sel));
     else if (k === 'color' || k === 'swap') { ctx.openPanel('cfg'); renderPanel(); setTimeout(() => { const t = $(k === 'color' ? 'cfgColor' : 'cfgAlt'); t && t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30); }
-    else if (k === 'piece') { if (sel && sel.kind === 'piece' && sel.part) select({ kind: 'part', name: sel.part }); else selectPiece(); }
-    else if (k === 'del') { if (sel.kind === 'part') hidePart(sel.name, true); else if (sel.kind === 'piece') hidePiece(sel.obj, true); else removeAcc(sel.obj, false); }
-    else if (k === 'reset') { if (sel.kind === 'part') resetPart(sel.name); else if (sel.kind === 'piece') resetPiece(sel.obj); else removeAcc(sel.obj, true); }
+    else if (k === 'piece') { if (sel && sel.kind === 'piece') selectComp(); else if (sel && sel.kind === 'comp') select({ kind: 'piece', obj: sel.seed, part: sel.part }); else selectPiece(); }
+    else if (k === 'del') { if (sel.kind === 'part') hidePart(sel.name, true); else if (sel.kind === 'comp') hideComp(sel.objs, true); else if (sel.kind === 'piece') hidePiece(sel.obj, true); else removeAcc(sel.obj, false); }
+    else if (k === 'reset') { if (sel.kind === 'part') resetPart(sel.name); else if (sel.kind === 'comp') resetComp(sel.objs); else if (sel.kind === 'piece') resetPiece(sel.obj); else removeAcc(sel.obj, true); }
     else if (k === 'panel') ctx.togglePanel(); });
   addEventListener('keydown', e => { if (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && ctx.activeTab() !== 'edit') { e.preventDefault(); doUndo(); }
@@ -692,7 +712,7 @@ export function initConfig(ctx) {
     const P = $('cfgSel'); if (!P) return; const s = sel; const slot = s && s.kind === 'acc' ? slotById(s.obj.userData.slot) : (slotView && slotById(slotView)) || (s && s.kind === 'part' ? guessSlot(s.name) : guessSlotSel(s));
     let h = '';
     if (s) h += `<div class="sel"><div class="note">${catOf(s)}</div><div class="nm">${nameOf(s)}</div>${s.kind === 'acc' && s.obj.userData.code ? `<div class="note">Codice ${s.obj.userData.code}</div>` : ''}
-      <div class="qa"><button class="btn sm" data-a="focus">Ingrandisci</button>${s.kind === 'part' ? '<button class="btn sm" data-a="piece">Solo il pezzo toccato</button>' : s.kind === 'piece' && s.part ? '<button class="btn sm" data-a="piece">Tutto il gruppo (stesso materiale)</button>' : ''}<button class="btn sm" data-a="del">Elimina</button><button class="btn sm" data-a="reset">${s.kind === 'acc' ? 'Torna di serie' : 'Ripristina'}</button>${s.kind === 'acc' ? '<button class="btn sm" data-a="edit">Sposta / misure</button>' : ''}<button class="btn sm" data-a="none">Deseleziona</button></div></div>`;
+      <div class="qa"><button class="btn sm" data-a="focus">Ingrandisci</button>${s.kind === 'part' ? '<button class="btn sm" data-a="piece">Solo il pezzo toccato</button>' : s.kind === 'piece' ? '<button class="btn sm" data-a="piece">Componente intero</button>' : s.kind === 'comp' ? '<button class="btn sm" data-a="piece">Solo il pezzo toccato</button>' : ''}${(s.kind === 'piece' || s.kind === 'comp') && s.part ? '<button class="btn sm" data-a="mat" title="Tutti i pezzi della moto con lo stesso materiale, anche lontani">Tutto lo stesso materiale</button>' : ''}<button class="btn sm" data-a="del">Elimina</button><button class="btn sm" data-a="reset">${s.kind === 'acc' ? 'Torna di serie' : 'Ripristina'}</button>${s.kind === 'acc' ? '<button class="btn sm" data-a="edit">Sposta / misure</button>' : ''}<button class="btn sm" data-a="none">Deseleziona</button></div></div>`;
     else if (slotView === '_paint') h += `<div class="sel"><div class="nm">Colore carrozzeria</div><div class="note">Scegli una tinta: si applica a serbatoio, parafanghi e coperture della moto.</div></div>`;
     else if (slot) h += `<div class="sel"><div class="nm">${slot.n}</div><div class="note">Scegli un'alternativa: viene montata al posto del pezzo di serie. Puoi sempre annullare o tornare di serie.</div></div>`;
     else h += `<div class="sel"><div class="nm">Configura la tua moto</div><div class="note">Tocca un pezzo sulla moto oppure scegli una categoria nella barra sotto la vista.</div></div>`;
@@ -702,9 +722,9 @@ export function initConfig(ctx) {
     if (slot && slot.id === 'ruote' && whPart !== 'cerchio') h += tyreDbHTML();
     if (slot) h += `<h3 id="cfgAlt">${slot.id === 'ruote' ? 'Cerchi e ruote complete' : 'Alternative: ' + slot.n}</h3><div class="row"><input id="cfgQ" type="search" placeholder="Filtra: cromato, 14&quot;, pelle…" class="inp"></div><div id="cfgAltGrid" class="rgrid"></div>`;
     P.innerHTML = h;
-    P.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { const a = b.dataset.a; if (a === 'edit') { ctx.editObj(s.obj); return; } Q.querySelector(`[data-q="${a}"]`).click(); });
+    P.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { const a = b.dataset.a; if (a === 'edit') { ctx.editObj(s.obj); return; } if (a === 'mat') { select({ kind: 'part', name: s.part }); return; } Q.querySelector(`[data-q="${a}"]`).click(); });
     const swb = $('cfgSw'); if (swb) SW.forEach(([n, c, f]) => { const b = document.createElement('button'); b.title = n; b.style.background = `radial-gradient(circle at 35% 30%,#ffffff55,transparent 45%),${c}`; b.onclick = () => { $('cfgCol').value = c; $('cfgFin').value = f; $('cfgApply').click(); }; swb.appendChild(b); });
-    const ap = $('cfgApply'); if (ap) ap.onclick = () => { const c = $('cfgCol').value, f = $('cfgFin').value; if (!s) { paintMany(ctx.bodyParts(), c, f, 'colore carrozzeria'); return; } if (s.kind === 'part') paintPart(s.name, c, f); else { if (s.kind === 'piece' && !s.obj.userData.origMat) s.obj.userData.origMat = s.obj.material; paintAcc(s.obj, c, f); } };
+    const ap = $('cfgApply'); if (ap) ap.onclick = () => { const c = $('cfgCol').value, f = $('cfgFin').value; if (!s) { paintMany(ctx.bodyParts(), c, f, 'colore carrozzeria'); return; } if (s.kind === 'part') paintPart(s.name, c, f); else if (s.kind === 'comp') paintComp(s.objs, c, f); else { if (s.kind === 'piece' && !s.obj.userData.origMat) s.obj.userData.origMat = s.obj.material; paintAcc(s.obj, c, f); } };
     P.querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { whPos = b.dataset.wp; renderPanel(); });
     P.querySelectorAll('[data-wq]').forEach(b => b.onclick = () => { whPart = b.dataset.wq; renderPanel(); });
     P.querySelectorAll('[data-tc]').forEach(b => b.onclick = () => { tyCat = b.dataset.tc; renderPanel(); });
@@ -785,7 +805,7 @@ export function initConfig(ctx) {
   renderList(); renderPanel(); syncQ();
   const toRm = [];
   return { select, selectAt, selectPart, selectAcc, get sel() { return sel; }, paintPart, paintMany, hidePart, resetPart, mount, fitAll, focus, undo: doUndo, redo: doRedo, record, reset() { config.forEach(e => [e.obj, ...(e.extra || [])].forEach(o => o && o.parent && o.parent.remove(o))); scene.traverse(o => { if (o.userData && o.userData.acc && o.parent === scene) toRm.push(o); }); toRm.splice(0).forEach(o => scene.remove(o)); config.length = 0; H.length = 0; R.length = 0; sel = null; slotView = null; geoCache = null; outline.selectedObjects = []; tyRim = null; syncStore(); renderList(); renderPanel(); syncQ(); },
-    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel, wheelRoles, wheelZoneSplit, syncStore, scalaRuote, asseRuota,
+    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel, wheelRoles, wheelZoneSplit, syncStore, scalaRuote, asseRuota, ricollegaSel,
     // l'officina ha ricostruito un accessorio (nuove opzioni): la configurazione punta al pezzo nuovo
     swapped(a, b) { let n = 0; for (const e of config) { if (e.obj === a) { e.obj = b; n++; } if (e.extra) { const i = e.extra.indexOf(a); if (i >= 0) { e.extra[i] = b; n++; } } }
       if (sel && sel.obj === a) { sel = { ...sel, obj: b }; outline.selectedObjects = meshesOf(sel); } if (n) afterChange(); } };

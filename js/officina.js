@@ -11,6 +11,7 @@ import { PRO_DEFS, PRO_IDS, buildPro, metal as pMetal, paint as pPaint, leather 
 import './pro2.js'; import './pro3.js'; import './pro4.js'; import './pro5.js';
 import { CATALOG, CAT_CATS, searchCatalog } from './catalog.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import * as ST from './stock.js';
 function adviceHTML(k,az){let h=advBase(k,az);const d=window.__techFor&&window.__techFor();const f=KB2TORQ[k];
  if(d&&f){const t=techHTML(d,f);if(/<table/.test(t))h+='<div class="h">Coppie e dati ufficiali per questo modello</div>'+t.replace(/<div class="tfam">[\s\S]*?<\/div><div class="note">[\s\S]*?<\/div>/,'');}
  const m=marketFor(k);if(m.length)h+='<div class="h">Sul mercato</div>'+m.map(x=>`<p>${x[2]} · <a href="${MARKET_URL}${x[1]}" target="_blank" rel="noopener">catalogo p. ${x[1]}</a></p>`).join('');return h;}
@@ -32,11 +33,7 @@ export function initOfficina(ctx){
  const typeSel=$('eType');typeSel.innerHTML=Object.entries(TIPI).map(([k,t])=>`<option value="${k}">${t.n}</option>`).join('');
 
  /* ---------- isole: pezzi fisicamente separati dentro una mesh ---------- */
- function islands(mesh){if(mesh.userData.isl)return mesh.userData.isl;let g=mesh.geometry;if(mesh.userData.zone){if(g.index){g=g.toNonIndexed();mesh.geometry.dispose();mesh.geometry=g;}return mesh.userData.isl=new Int32Array(g.attributes.position.count/3);}if(g.index){g=g.toNonIndexed();mesh.geometry.dispose();mesh.geometry=g;}
-  const p=g.attributes.position.array,nT=p.length/9,par=new Int32Array(nT);for(let i=0;i<nT;i++)par[i]=i;
-  const f=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i];}return i;};const map=new Map();
-  for(let v=0;v<p.length/3;v++){const k=(Math.round(p[v*3]*4000)*73856093)^(Math.round(p[v*3+1]*4000)*19349663)^(Math.round(p[v*3+2]*4000)*83492791);const t=(v/3)|0;const o=map.get(k);if(o===undefined)map.set(k,t);else{const a=f(o),b=f(t);if(a!==b)par[a]=b;}}
-  const r=new Int32Array(nT);for(let i=0;i<nT;i++)r[i]=f(i);return mesh.userData.isl=r;}
+ const islands=ST.islands; // stesso calcolo esatto delle isole della configurazione (stock.js)
  function subGeo(g,keep){const out=new THREE.BufferGeometry();const nT=keep.length;
   for(const [n,a] of Object.entries(g.attributes)){const s=a.itemSize,arr=new a.array.constructor(nT*3*s);let o=0;for(const t of keep){arr.set(a.array.subarray(t*3*s,(t*3+3)*s),o);o+=3*s;}out.setAttribute(n,new THREE.BufferAttribute(arr,s,a.normalized));}
   return out;}
@@ -46,6 +43,32 @@ export function initOfficina(ctx){
   ng.computeBoundingBox();const c=ng.boundingBox.getCenter(new THREE.Vector3());ng.translate(-c.x,-c.y,-c.z);
   const m=new THREE.Mesh(ng,mesh.material);m.castShadow=m.receiveShadow=true;m.position.copy(mesh.position).add(c.clone().multiply(mesh.scale).applyQuaternion(mesh.quaternion));m.quaternion.copy(mesh.quaternion);m.scale.copy(mesh.scale);
   m.userData.piece=true;m.userData.origin={p:m.position.clone(),q:m.quaternion.clone(),s:m.scale.clone()};m.name=(mesh.material.name||'pezzo');mesh.parent.add(m);ctx.registerMesh(m);return m;}
+
+ /* ---------- componente intero: il pezzo toccato e quelli montati con lui (stessa regola della configurazione), raccolti in un gruppo
+    che le maniglie spostano e ruotano tutto insieme. Mai i pezzi che hanno solo lo stesso materiale (telaio, altri componenti) ---------- */
+ function estraiIsole(mesh,ids){ // più isole della stessa mesh in un colpo solo (dopo ogni taglio gli indici delle isole cambiano)
+  if(Array.isArray(mesh.material))return [mesh];const isl=islands(mesh),set=new Set(ids),grp=new Map(),rest=[];
+  for(let t=0;t<isl.length;t++){if(set.has(isl[t])){let a=grp.get(isl[t]);if(!a)grp.set(isl[t],a=[]);a.push(t);}else rest.push(t);}
+  if(!grp.size)return [];if(!rest.length&&grp.size===1)return [mesh];
+  const g=mesh.geometry,out=[];
+  for(const keep of grp.values()){const ng=subGeo(g,keep);ng.computeBoundingBox();const c=ng.boundingBox.getCenter(new THREE.Vector3());ng.translate(-c.x,-c.y,-c.z);
+   const m=new THREE.Mesh(ng,mesh.material);m.castShadow=m.receiveShadow=true;m.position.copy(mesh.position).add(c.clone().multiply(mesh.scale).applyQuaternion(mesh.quaternion));m.quaternion.copy(mesh.quaternion);m.scale.copy(mesh.scale);
+   m.userData.piece=true;m.userData.origin={p:m.position.clone(),q:m.quaternion.clone(),s:m.scale.clone()};m.name=(mesh.material.name||'pezzo');mesh.parent.add(m);ctx.registerMesh(m);out.push(m);}
+  if(rest.length){mesh.geometry=subGeo(g,rest);}else{mesh.visible=false;mesh.userData.vuoto=true;}
+  mesh.userData.isl=null;g.dispose();for(let a=mesh;a;a=a.parent)if(a.userData.__idx)a.userData.__idx=null;return out;}
+ function componenteDi(mesh,tri){
+  if(mesh.parent&&mesh.parent.userData.comp)return mesh.parent; // già raccolto in un componente
+  const M=ctx.getModel();if(!M||Array.isArray(mesh.material))return mesh;
+  const id=islands(mesh)[tri];const L=ST.componente(M,mesh,id);const per=new Map();L.forEach(({mesh:m,id:i})=>{if(!per.has(m))per.set(m,[]);per.get(m).push(i);});
+  const pcs=[];for(const [m,ids] of per)pcs.push(...estraiIsole(m,ids));
+  if(!pcs.length)return extract(mesh,tri);if(pcs.length===1){ctx.toast('Questo pezzo non ha altri pezzi montati con lui: il componente è il pezzo stesso');return pcs[0];}
+  const par=pcs[0].parent||scene,box=new THREE.Box3();pcs.forEach(p=>box.expandByObject(p));const c=box.getCenter(new THREE.Vector3());
+  par.updateMatrixWorld(true);const G=new THREE.Group();G.name='Componente';G.position.copy(par.worldToLocal(c.clone()));par.add(G);G.updateMatrixWorld(true);
+  const inv=new THREE.Matrix4().copy(G.matrixWorld).invert(),mo=new THREE.Matrix4(),mw=new THREE.Matrix4();
+  pcs.forEach(p=>{const o=p.userData.origin,pp=p.parent;if(pp)pp.updateMatrixWorld(true);const pw=pp?pp.matrixWorld.clone():new THREE.Matrix4();G.attach(p);
+   if(o){mo.compose(o.p,o.q,o.s);mw.multiplyMatrices(pw,mo).premultiply(inv);const P=new THREE.Vector3(),Q=new THREE.Quaternion(),S=new THREE.Vector3();mw.decompose(P,Q,S);p.userData.origin={p:P,q:Q,s:S};}}); // posizione di serie del pezzo, vista dal gruppo
+  G.userData.piece=true;G.userData.comp=true;G.userData.accName='Componente intero ('+pcs.length+' pezzi)';G.userData.origin={p:G.position.clone(),q:G.quaternion.clone(),s:G.scale.clone()};
+  ctx.toast('Componente intero: '+pcs.length+' pezzi (il pezzo toccato e quelli montati con lui)');return G;}
 
  /* ---------- selezione ---------- */
  function select(o){sel=o;if(o){tc.attach(o);tc.setMode($('eMode').value);if(!o.userData.origin)o.userData.origin={p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};
@@ -57,7 +80,7 @@ export function initOfficina(ctx){
    if($('eLock').checked){for(const b of ['x','y','z'])if(b!==a)sel.scale[b]=s0[b]*(+e.target.value)*sg(b);}syncScale();invalidate();};
  $('eMode').onchange=()=>tc.setMode($('eMode').value);
  typeSel.onchange=()=>{if(sel){sel.userData.kbType=typeSel.value;$('eAdv').innerHTML=adviceHTML(typeSel.value,'info');}};
- function advise(o,az){const k=o.userData.kbType||'generic';$('eAdv').innerHTML=adviceHTML(k,az);ctx.toast(`${az==='rimosso'?'Rimosso':az==='aggiunto'?'Aggiunto':'Modificato'}: ${TIPI[k].n} — consigli nella scheda Officina 3D`);}
+ function advise(o,az){const k=TIPI[o.userData.kbType]?o.userData.kbType:'generic';$('eAdv').innerHTML=adviceHTML(k,az);ctx.toast(`${az==='rimosso'?'Rimosso':az==='aggiunto'?'Aggiunto':'Modificato'}: ${TIPI[k].n} — consigli nella scheda Officina 3D`);}
  function pushUndo(o){undo.push({o,p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone(),v:o.visible,par:o.parent});if(undo.length>200)undo.shift();}
  $('eDel').onclick=()=>{if(!sel)return;pushUndo(sel);sel.visible=false;advise(sel,'rimosso');tc.detach();sel=null;invalidate();};
  $('eDup').onclick=()=>{if(!sel)return;const c=sel.clone();c.userData={...sel.userData,origin:null};c.position.z=-c.position.z;c.scale.z*=sel.position.z===0?1:1;sel.parent.add(c);if(!c.userData.acc)ctx.registerMesh(c);undo.push({o:c,v:false,p:c.position.clone(),q:c.quaternion.clone(),s:c.scale.clone(),par:null,added:1});select(c);};
@@ -103,7 +126,13 @@ export function initOfficina(ctx){
   setTimeout(thumbNext,16);}
  /* ---------- catalogo accessori: oltre 2.000 articoli con codice ---------- */
  {const box=$('catGrid'),flt=$('catCats'),q=$('catQ'),pg=$('catPager'),cnt=$('catCount');if(box){let cat='',page=0,list=CATALOG;const PER=24;
-  const place=it=>{if(it.real){ctx.toast('Carico «'+it.n+'»…');ctx.loadPart(it.real).then(g=>{placing={n:it.n,cat:'Ricambi reali',fn:()=>{const o=new THREE.Group();const c2=g.clone(true);c2.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;x.material=Array.isArray(x.material)?x.material.map(m=>m.clone()):x.material.clone();}});o.add(c2);o.name=it.n;o.userData={type:it.t,real:it.real};return o;}};
+  /* vernice della carrozzeria della moto (serbatoio per primo): i ricambi verniciati la prendono uguale, finitura compresa */
+  const vernMoto=()=>{const ps=[...ctx.getParts().values()].filter(p=>p.cat==='Carrozzeria e verniciatura'&&p.cur&&!p.cur.map&&p.cur.color);if(!ps.length)return null;
+    const t=ps.find(p=>(p.cur.userData&&p.cur.userData.ruolo==='serbatoio')||/serbatoio|tank/i.test(p.name))||ps[0];return t.cur;};
+  const VERN=/^(serbatoio|parafango_ant|parafango_post|fianchetti|carena)$/;
+  const place=it=>{if(it.real){ctx.toast('Carico «'+it.n+'»…');ctx.loadPart(it.real).then(g=>{placing={n:it.n,cat:'Ricambi reali',fn:()=>{const o=new THREE.Group();const c2=g.clone(true);const vm=vernMoto();c2.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;x.material=Array.isArray(x.material)?x.material.map(m=>m.clone()):x.material.clone();
+      if(vm&&!Array.isArray(x.material)&&VERN.test((x.material.userData&&x.material.userData.ruolo)||'')){const m0=x.material,m=vm.clone();m.name=m0.name;m.userData={...m0.userData,colore:'#'+vm.color.getHexString()};x.material=m;}
+      if(!Array.isArray(x.material)&&x.material.normalMap&&!x.geometry.attributes.uv&&window.__uvCubo)window.__uvCubo(x);}});o.add(c2);o.name=it.n;o.userData={type:it.t,real:it.real};return o;}};
       $('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+it.n+' · Esc per annullare';}).catch(()=>ctx.toast('Impossibile caricare il ricambio'));return;}
     placing={n:it.n,cat:it.cat,fn:()=>{const o=buildPro(it.id,it.o);o.userData.code=it.k;return o;}};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+it.k+' · '+it.n+' · poi in Officina regoli misure, colori e finiture · Esc per annullare';};
   window.__cgPlace=place;const draw=()=>{list=searchCatalog(q.value,cat);const np=Math.max(1,Math.ceil(list.length/PER));page=Math.min(page,np-1);cnt.textContent=list.length+' articoli'+(list.length>PER?' · pagina '+(page+1)+' di '+np:'');box.innerHTML='';
@@ -199,7 +228,7 @@ export function initOfficina(ctx){
   if(active!=='edit'&&active!=='acc')return false;
   if(!hit){select(null);return true;}
   const o=hit.object;if(o.userData.handleOf){select(o);return true;}if(o.userData.accPart){select(o.userData.accPart);return true;}
-  if(mode==='piece'){select(extract(o,hit.faceIndex));}else select(o);return true;}
+  if(mode==='piece'){select(extract(o,hit.faceIndex));}else select(componenteDi(o,hit.faceIndex));return true;}
  addEventListener('keydown',e=>{if(e.key==='Escape'){placing=null;building=null;$('placeHint').style.display='none';}
   if(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
   if(e.key==='Delete'&&sel)$('eDel').click();if((e.ctrlKey||e.metaKey)&&e.key==='z')$('eUndo').click();if(e.key==='g')$('eMode').value='translate',tc.setMode('translate');if(e.key==='r')$('eMode').value='rotate',tc.setMode('rotate');if(e.key==='s')$('eMode').value='scale',tc.setMode('scale');});
@@ -227,8 +256,9 @@ export function initOfficina(ctx){
  $('ePFin').innerHTML=ctx.FIN.filter(f=>f[0]!=='orig').map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
  $('ePApply').onclick=()=>{if(!sel){ctx.toast('Seleziona prima un pezzo');return;}const col=$('ePColor').value,f=$('ePFin').value;
   const paint=(m0)=>{const m=new THREE.MeshPhysicalMaterial({name:(m0.name||'pezzo')+' (custom)',color:new THREE.Color(col),normalMap:m0.normalMap||null,side:m0.side,transparent:m0.transparent,opacity:m0.opacity});Object.assign(m,ctx.finishParams(f));return m;};
-  if(sel.isMesh){if(!Array.isArray(sel.material)){sel.material=paint(sel.material);}}
-  else sel.traverse(c=>{if(c.isMesh&&!/Lente|LED|Gomma|Vetro|Parabola|Fascia|Policarbonato/.test(c.material.name||''))c.material=paint(c.material);});
+  const uv=c=>{if(c.material&&c.material.normalMap&&window.__uvCubo)window.__uvCubo(c);};
+  if(sel.isMesh){if(!Array.isArray(sel.material)){sel.material=paint(sel.material);uv(sel);}}
+  else sel.traverse(c=>{if(c.isMesh&&!Array.isArray(c.material)&&!/Lente|LED|Gomma|Vetro|Parabola|Fascia|Policarbonato/.test(c.material.name||'')&&!/^(gomma|vetro|fanale|frecce|manopole|pedane|sella)$/.test((c.material.userData&&c.material.userData.ruolo)||'')){c.material=paint(c.material);uv(c);}});
   invalidate();};
  /* ---------- copia / incolla tra moto ---------- */
  const clip=[];
