@@ -12,6 +12,7 @@ import './pro2.js'; import './pro3.js'; import './pro4.js'; import './pro5.js';
 import { CATALOG, CAT_CATS, searchCatalog } from './catalog.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as ST from './stock.js';
+import * as AG from './aggancio.js';
 function adviceHTML(k,az){let h=advBase(k,az);const d=window.__techFor&&window.__techFor();const f=KB2TORQ[k];
  if(d&&f){const t=techHTML(d,f);if(/<table/.test(t))h+='<div class="h">Coppie e dati ufficiali per questo modello</div>'+t.replace(/<div class="tfam">[\s\S]*?<\/div><div class="note">[\s\S]*?<\/div>/,'');}
  const m=marketFor(k);if(m.length)h+='<div class="h">Sul mercato</div>'+m.map(x=>`<p>${x[2]} · <a href="${MARKET_URL}${x[1]}" target="_blank" rel="noopener">catalogo p. ${x[1]}</a></p>`).join('');return h;}
@@ -19,10 +20,14 @@ function adviceHTML(k,az){let h=advBase(k,az);const d=window.__techFor&&window._
 export function initOfficina(ctx){
  const {scene,camera,renderer,controls,invalidate,$}=ctx;
  const tc=new TransformControls(camera,renderer.domElement);tc.setSize(.85);scene.add(tc);
- tc.addEventListener('dragging-changed',e=>{controls.enabled=!e.value;if(e.value&&sel)pushUndo(sel);if(!e.value&&sel){advise(sel,'modificato');if(sel.userData.handleOf)rebuildPipe(sel.userData.handleOf);}});
- tc.addEventListener('objectChange',()=>{if(sel&&sel.userData.handleOf)rebuildPipe(sel.userData.handleOf,true);invalidate();syncScale();});
+ /* punti di aggancio (calamita) come nei programmi CAD: centri, facce e spigoli dei pezzi, assi ruota, mezzeria, terra */
+ const CAL=AG.creaCalamita({scene,camera,renderer,invalidate,getModel:ctx.getModel,asseRuota:ctx.asseRuota,nomeDi:o=>ctx.nice((o.material&&!Array.isArray(o.material)&&o.material.name)||o.name||'pezzo')});
+ tc.addEventListener('dragging-changed',e=>{controls.enabled=!e.value;
+  if(e.value&&sel){pushUndo(sel);if(tc.mode==='translate')CAL.inizio(tc.object);}
+  if(!e.value){const sn=CAL.fine();if(sel){advise(sel,'modificato',sn?'agganciato a: '+sn.n:'');if(sel.userData.handleOf)rebuildPipe(sel.userData.handleOf);}ctx.modificato&&ctx.modificato();}});
+ tc.addEventListener('objectChange',()=>{if(tc.dragging&&tc.mode==='translate'&&tc.object)CAL.muovi(tc.object);if(sel&&sel.userData.handleOf)rebuildPipe(sel.userData.handleOf,true);invalidate();syncScale();});
  tc.addEventListener('change',invalidate);
- let sel=null,undo=[],added=[],mode='piece',placing=null,building=null;
+ let sel=null,undo=[],added=[],mode='piece',placing=null,building=null,TOOL='sel',inClick=false;
  /* le maniglie restano agganciate solo a pezzi presenti nella scena: se il pezzo viene sostituito (nuova gomma, nuovo cerchio) o tolto,
     si sganciano da sole invece di generare errori a ogni tocco */
  const inScena=o=>{for(let p=o;p;p=p.parent)if(p===scene)return true;return false;};
@@ -71,24 +76,45 @@ export function initOfficina(ctx){
   ctx.toast('Componente intero: '+pcs.length+' pezzi (il pezzo toccato e quelli montati con lui)');return G;}
 
  /* ---------- selezione ---------- */
- function select(o){sel=o;if(o){tc.attach(o);tc.setMode($('eMode').value);if(!o.userData.origin)o.userData.origin={p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};
+ /* ---------- strumenti: Seleziona (senza maniglie) · Sposta · Ruota · Scala. «Fine», Esc o un tocco nel vuoto tornano alla selezione ---------- */
+ const VERBO={translate:'spostare',rotate:'ruotare',scale:'ridimensionare'};
+ function setTool(t,quiet){if(!['sel','translate','rotate','scale'].includes(t))t='sel';TOOL=t;
+  document.querySelectorAll('#tools [data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));{const f=$('tFine');if(f)f.style.display=t==='sel'?'none':'';}
+  if(t!=='sel'&&$('eMode'))$('eMode').value=t;
+  if(t==='sel'){tc.detach();CAL.nascondi();}
+  else{const o=need();if(o){tc.attach(o);tc.setMode(t);}else if(!quiet)ctx.toast('Tocca il pezzo o l\'accessorio da '+VERBO[t]);}
+  invalidate();}
+ /* dalla selezione della configurazione all'oggetto da muovere: un accessorio resta com'è; un pezzo o un componente della moto
+    entra in un «perno» (gruppo con l'origine al centro del pezzo), così le maniglie stanno sul pezzo e non lontano */
+ function perno(objs,nome){objs=objs.filter(o=>o&&inScena(o));if(!objs.length)return null;const p0=objs[0].parent;
+  if(p0&&p0.userData.perno&&objs.every(o=>o.parent===p0)&&p0.children.length===objs.length)return p0;
+  const par=objs.every(o=>o.parent===p0)?p0:(ctx.getModel()||scene);const b=new THREE.Box3();objs.forEach(o=>b.expandByObject(o));const c=b.getCenter(new THREE.Vector3());
+  par.updateMatrixWorld(true);const G=new THREE.Group();G.name=nome;G.position.copy(par.worldToLocal(c.clone()));par.add(G);G.updateMatrixWorld(true);objs.forEach(o=>G.attach(o));
+  G.userData.piece=true;G.userData.perno=true;G.userData.comp=objs.length>1;G.userData.accName=objs.length>1?'Componente intero ('+objs.length+' pezzi)':'Pezzo selezionato';
+  G.userData.origin={p:G.position.clone(),q:G.quaternion.clone(),s:G.scale.clone()};if(ctx.diario)try{ctx.diario('perno',G,objs,par);}catch(e){console.warn('diario',e);}return G;}
+ function bersaglio(s){if(!s)return null;if(s.kind==='acc')return inScena(s.obj)?s.obj:null;if(s.kind==='piece')return perno([s.obj],'Pezzo');if(s.kind==='comp')return perno(s.objs,'Componente');return null;}
+ /* l'oggetto su cui lavorano i comandi dell'officina: quello già scelto, oppure quello selezionato toccando la moto */
+ function need(){if(sel&&inScena(sel))return sel;const o=bersaglio(ctx.cfgSel&&ctx.cfgSel());if(o)select(o);return o;}
+ /* la configurazione ha cambiato selezione: con Sposta/Ruota/Scala le maniglie passano al nuovo pezzo, con Seleziona nessuna maniglia */
+ function adopt(s){if(inClick)return;if(!s){select(null);return;}if(TOOL!=='sel'){const o=bersaglio(s);if(o)select(o);}else{sel=null;tc.detach();$('eName').textContent=s.kind==='part'?'Tocca il pezzo sulla moto':'Pronto: '+(s.kind==='comp'?'componente intero ('+s.objs.length+' pezzi)':s.kind==='acc'?(s.obj.userData.accName||'accessorio'):'pezzo selezionato');}}
+ function select(o){sel=o;if(o){if(TOOL!=='sel'){tc.attach(o);tc.setMode(TOOL);}else tc.detach();if(!o.userData.origin)o.userData.origin={p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};
    const nm=o.userData.accName||ctx.nice(o.material&&!Array.isArray(o.material)?o.material.name:o.name||'pezzo');$('eName').textContent=nm;
    const k=o.userData.kbType||guessType((o.material&&o.material.name||'')+' '+(o.name||''),ctx.catOfMesh(o));o.userData.kbType=k;typeSel.value=k;$('eAdv').innerHTML=adviceHTML(k,'info');syncScale();}
   else{tc.detach();$('eName').textContent='Clicca un pezzo sulla moto';}{const a=$('eAsse');if(a)a.style.display=o&&o.userData.ruota?'':'none';}renderOpts(o);renderMats(o);invalidate();}
  function syncScale(){if(!sel)return;for(const a of ['x','y','z']){$('es'+a).value=Math.abs(sel.scale[a]/(sel.userData.origin?sel.userData.origin.s[a]:1));$('os'+a).textContent=Math.round($('es'+a).value*100)+'%';}}
- for(const a of ['x','y','z'])$('es'+a).oninput=e=>{if(!sel)return;if(!e.target._u){pushUndo(sel);e.target._u=1;setTimeout(()=>e.target._u=0,600);}const s0=sel.userData.origin.s;const sg=b=>Math.sign(sel.scale[b]/s0[b])||1;sel.scale[a]=s0[a]*(+e.target.value)*sg(a);
+ for(const a of ['x','y','z'])$('es'+a).oninput=e=>{if(!need())return;if(!e.target._u){pushUndo(sel);e.target._u=1;setTimeout(()=>e.target._u=0,600);}const s0=sel.userData.origin.s;const sg=b=>Math.sign(sel.scale[b]/s0[b])||1;sel.scale[a]=s0[a]*(+e.target.value)*sg(a);
    if($('eLock').checked){for(const b of ['x','y','z'])if(b!==a)sel.scale[b]=s0[b]*(+e.target.value)*sg(b);}syncScale();invalidate();};
- $('eMode').onchange=()=>tc.setMode($('eMode').value);
+ $('eMode').onchange=()=>setTool($('eMode').value);
  typeSel.onchange=()=>{if(sel){sel.userData.kbType=typeSel.value;$('eAdv').innerHTML=adviceHTML(typeSel.value,'info');}};
- function advise(o,az){const k=TIPI[o.userData.kbType]?o.userData.kbType:'generic';$('eAdv').innerHTML=adviceHTML(k,az);ctx.toast(`${az==='rimosso'?'Rimosso':az==='aggiunto'?'Aggiunto':'Modificato'}: ${TIPI[k].n} — consigli nella scheda Officina 3D`);}
- function pushUndo(o){undo.push({o,p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone(),v:o.visible,par:o.parent});if(undo.length>200)undo.shift();}
- $('eDel').onclick=()=>{if(!sel)return;pushUndo(sel);sel.visible=false;advise(sel,'rimosso');tc.detach();sel=null;invalidate();};
- $('eDup').onclick=()=>{if(!sel)return;const c=sel.clone();c.userData={...sel.userData,origin:null};c.position.z=-c.position.z;c.scale.z*=sel.position.z===0?1:1;sel.parent.add(c);if(!c.userData.acc)ctx.registerMesh(c);undo.push({o:c,v:false,p:c.position.clone(),q:c.quaternion.clone(),s:c.scale.clone(),par:null,added:1});select(c);};
+ function advise(o,az,extra){const k=TIPI[o.userData.kbType]?o.userData.kbType:'generic';$('eAdv').innerHTML=adviceHTML(k,az);ctx.toast(`${az==='rimosso'?'Rimosso':az==='aggiunto'?'Aggiunto':'Modificato'}: ${o.userData.accName&&!o.userData.perno?o.userData.accName:TIPI[k].n}${extra?' — '+extra:''} — consigli nella scheda Officina 3D`);}
+ function pushUndo(o){undo.push({o,p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone(),v:o.visible,par:o.parent});if(undo.length>200)undo.shift();ctx.modificato&&setTimeout(ctx.modificato,0);}
+ $('eDel').onclick=()=>{if(!need())return;pushUndo(sel);sel.visible=false;advise(sel,'rimosso');tc.detach();sel=null;invalidate();};
+ $('eDup').onclick=()=>{if(!need())return;const c=sel.clone();c.userData={...sel.userData,origin:null};c.position.z=-c.position.z;c.scale.z*=sel.position.z===0?1:1;sel.parent.add(c);if(!c.userData.acc){ctx.registerMesh(c);c.traverse(m=>{if(m.isMesh&&m!==c)ctx.registerMesh(m);});if(ctx.diario)try{ctx.diario('dup',c,sel);}catch(e){console.warn('diario',e);}}undo.push({o:c,v:false,p:c.position.clone(),q:c.quaternion.clone(),s:c.scale.clone(),par:null,added:1});select(c);};
  function centraAsse(o,silenzio){const A=ctx.asseRuota&&o&&o.userData.ruota?ctx.asseRuota(o.userData.ruota):null;if(!A||!A.c)return false;
   const par=o.parent||scene;par.updateWorldMatrix(true,false);const pl=par.worldToLocal(A.c.clone());const pq=new THREE.Quaternion();par.getWorldQuaternion(pq);
   const qw=A.n?new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1),A.n):new THREE.Quaternion();o.position.copy(pl);o.quaternion.copy(pq.invert().multiply(qw));o.updateMatrixWorld(true);if(sel===o)syncScale();invalidate();if(!silenzio)ctx.toast('Centrato sull\'asse del mozzo '+(o.userData.ruota==='ant'?'anteriore':'posteriore'));return true;}
- {const b=$('eAsse');if(b)b.onclick=()=>{if(!sel)return;pushUndo(sel);if(!centraAsse(sel))ctx.toast('Asse della ruota non disponibile per questo modello');};}
- $('eReset').onclick=()=>{if(!sel||!sel.userData.origin)return;pushUndo(sel);const o=sel.userData.origin;sel.position.copy(o.p);sel.quaternion.copy(o.q);sel.scale.copy(o.s);sel.visible=true;syncScale();invalidate();};
+ {const b=$('eAsse');if(b)b.onclick=()=>{if(!need())return;pushUndo(sel);if(!centraAsse(sel))ctx.toast('Asse della ruota non disponibile per questo modello');};}
+ $('eReset').onclick=()=>{if(!need()||!sel.userData.origin)return;pushUndo(sel);const o=sel.userData.origin;sel.position.copy(o.p);sel.quaternion.copy(o.q);sel.scale.copy(o.s);sel.visible=true;syncScale();invalidate();};
  $('eUndo').onclick=()=>{const u=undo.pop();if(!u)return;if(u.swap){swapObj(u.swap[0],u.swap[1]);select(u.swap[1]);return;}if(u.added){u.o.parent&&u.o.parent.remove(u.o);if(sel===u.o)select(null);invalidate();return;}u.o.position.copy(u.p);u.o.quaternion.copy(u.q);u.o.scale.copy(u.s);u.o.visible=u.v;if(sel===u.o)syncScale();invalidate();};
  $('eShowAll').onclick=()=>{ctx.getModel()&&ctx.getModel().traverse(o=>{if(o.isMesh)o.visible=true;});added.forEach(a=>a.visible=true);invalidate();};
  $('eMirror').onclick=()=>$('eDup').click();
@@ -96,19 +122,22 @@ export function initOfficina(ctx){
 
  /* ---------- accessori ---------- */
  const lib=$('accLib');ACC.CATALOG.forEach(([cat,items])=>{const h=document.createElement('div');h.className='group';h.textContent=cat;lib.appendChild(h);const w=document.createElement('div');w.className='chips';
-  items.forEach(([n,fn])=>{const b=document.createElement('button');b.className='chip';b.textContent=n;b.onclick=()=>{placing={n,fn,cat};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+n+' · Esc per annullare';};w.appendChild(b);});lib.appendChild(w);});
- function placeAt(hit){const o=placing.fn();o.userData.acc=true;o.userData.accName=placing.n;o.userData.kbType=o.userData.type||'generic';
+  items.forEach(([n,fn])=>{const b=document.createElement('button');b.className='chip';b.textContent=n;b.onclick=()=>{placing={n,fn,cat,ric:{tipo:'acc',cat,n}};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+n+' · Esc per annullare';};w.appendChild(b);});lib.appendChild(w);});
+ function placeAt(hit){const o=placing.fn();o.userData.acc=true;o.userData.accName=placing.n;o.userData.kbType=o.userData.type||'generic';if(placing.ric)o.userData.ricetta=placing.ric;else if(o.userData.real)o.userData.ricetta={tipo:'reale',id:o.userData.real};
   const p=hit.point.clone();o.position.copy(p);if(o.userData.type==='tire'){o.position.y=Math.max(p.y,o.userData.R);}
   if(placing.cat==='Carter e coperchi'){const n=hit.face.normal.clone().transformDirection(hit.object.matrixWorld);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),n);o.position.addScaledVector(n,.003);}
   else if(p.z<0&&['Specchietti','Frecce'].includes(placing.cat)){o.scale.z=-1;}
   o.traverse(c=>{if(c.isMesh){c.userData.accPart=o;}});o.addEventListener('ready',()=>{o.traverse(c=>{if(c.isMesh)c.userData.accPart=o;});invalidate();});scene.add(o);added.push(o);undo.push({o,added:1});select(o);advise(o,'aggiunto');
   placing=null;$('placeHint').style.display='none';invalidate();}
+ /* montaggio automatico al posto giusto (default) oppure a mano toccando la moto */
+ const auto=()=>!!(window.CFG&&ctx.getModel()&&(!$('accAuto')||$('accAuto').checked));
  /* ---------- ricambi 3D reali ---------- */
  {const box=$('realLib'),flt=$('realCat');if(box){let cat='';
   const draw=()=>{box.innerHTML='';PARTS.filter(p=>!cat||p[2]===cat).forEach(([id,n,c,kb,au,u,mis])=>{const d=document.createElement('button');d.className='rp';d.title=n+' – modello di '+au+' (CC BY 4.0)';
     d.innerHTML=`<img src="parts/thumbs/${id}.webp" alt="" loading="lazy"><b>${n}</b><span>${c} · ${mis}</span>`;
-    d.onclick=async()=>{ctx.toast('Carico «'+n+'»…');let g;try{g=await ctx.loadPart(id);}catch(e){ctx.toast('Impossibile caricare il ricambio');return;}
-      placing={n,cat:'Ricambi reali',fn:()=>{const o=new THREE.Group();const c2=g.clone(true);c2.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;x.material=Array.isArray(x.material)?x.material.map(m=>m.clone()):x.material.clone();}});o.add(c2);o.name=n;o.userData={type:kb,real:id};return o;}};
+    d.onclick=async()=>{const it=CATALOG.find(c=>c.real===id)||{k:'CG-R',real:id,n,cat:c,t:kb};if(auto()){window.CFG.mount(it);return;}
+      ctx.toast('Carico «'+n+'»…');let g;try{g=await ctx.loadPart(id);}catch(e){ctx.toast('Impossibile caricare il ricambio');return;}
+      placing={n,cat:'Ricambi reali',fn:()=>{const c2=g.clone(true);c2.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;x.material=Array.isArray(x.material)?x.material.map(m=>m.clone()):x.material.clone();}});const o=AG.orienta(id,c2);o.name=n;o.userData.type=kb;o.userData.real=id;return o;}};
       $('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+n+' · poi regolalo con le maniglie · Esc per annullare';};
     box.appendChild(d);});};
   flt.innerHTML='<button class="chip on" data-c="">Tutti</button>'+PART_CATS.map(c=>`<button class="chip" data-c="${c}">${c}</button>`).join('');
@@ -130,12 +159,12 @@ export function initOfficina(ctx){
   const vernMoto=()=>{const ps=[...ctx.getParts().values()].filter(p=>p.cat==='Carrozzeria e verniciatura'&&p.cur&&!p.cur.map&&p.cur.color);if(!ps.length)return null;
     const t=ps.find(p=>(p.cur.userData&&p.cur.userData.ruolo==='serbatoio')||/serbatoio|tank/i.test(p.name))||ps[0];return t.cur;};
   const VERN=/^(serbatoio|parafango_ant|parafango_post|fianchetti|carena)$/;
-  const place=it=>{if(it.real){ctx.toast('Carico «'+it.n+'»…');ctx.loadPart(it.real).then(g=>{placing={n:it.n,cat:'Ricambi reali',fn:()=>{const o=new THREE.Group();const c2=g.clone(true);const vm=vernMoto();c2.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;x.material=Array.isArray(x.material)?x.material.map(m=>m.clone()):x.material.clone();
+  const place=(it,mano)=>{if(!mano&&auto()){window.CFG.mount(it);return;}if(it.real){ctx.toast('Carico «'+it.n+'»…');ctx.loadPart(it.real).then(g=>{placing={n:it.n,cat:'Ricambi reali',fn:()=>{const c2=g.clone(true);const vm=vernMoto();c2.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;x.material=Array.isArray(x.material)?x.material.map(m=>m.clone()):x.material.clone();
       if(vm&&!Array.isArray(x.material)&&VERN.test((x.material.userData&&x.material.userData.ruolo)||'')){const m0=x.material,m=vm.clone();m.name=m0.name;m.userData={...m0.userData,colore:'#'+vm.color.getHexString()};x.material=m;}
-      if(!Array.isArray(x.material)&&x.material.normalMap&&!x.geometry.attributes.uv&&window.__uvCubo)window.__uvCubo(x);}});o.add(c2);o.name=it.n;o.userData={type:it.t,real:it.real};return o;}};
+      if(!Array.isArray(x.material)&&x.material.normalMap&&!x.geometry.attributes.uv&&window.__uvCubo)window.__uvCubo(x);}});const o2=AG.orienta(it.real,c2);o2.name=it.n;o2.userData.type=it.t;o2.userData.real=it.real;return o2;}};
       $('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+it.n+' · Esc per annullare';}).catch(()=>ctx.toast('Impossibile caricare il ricambio'));return;}
     placing={n:it.n,cat:it.cat,fn:()=>{const o=buildPro(it.id,it.o);o.userData.code=it.k;return o;}};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+it.k+' · '+it.n+' · poi in Officina regoli misure, colori e finiture · Esc per annullare';};
-  window.__cgPlace=place;const draw=()=>{list=searchCatalog(q.value,cat);const np=Math.max(1,Math.ceil(list.length/PER));page=Math.min(page,np-1);cnt.textContent=list.length+' articoli'+(list.length>PER?' · pagina '+(page+1)+' di '+np:'');box.innerHTML='';
+  window.__cgPlace=it=>place(it,true);const draw=()=>{list=searchCatalog(q.value,cat);const np=Math.max(1,Math.ceil(list.length/PER));page=Math.min(page,np-1);cnt.textContent=list.length+' articoli'+(list.length>PER?' · pagina '+(page+1)+' di '+np:'');box.innerHTML='';
     list.slice(page*PER,(page+1)*PER).forEach(it=>{const b=document.createElement('button');b.className='rp';b.title=it.k+' – '+it.n+(it.b?' · tipologia prodotta da: '+it.b:'')+(it.au?' · modello di '+it.au+' (CC BY 4.0)':'');
       b.innerHTML=`<img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"><b>${it.n}</b><span>${it.k} · ${it.cat}</span>`;const img=b.querySelector('img');
       if(it.real)img.src='parts/thumbs/'+it.real+'.webp';else thumbOf(it.k,()=>buildPro(it.id,it.o),img);b.onclick=()=>place(it);box.appendChild(b);});
@@ -150,7 +179,7 @@ export function initOfficina(ctx){
   const draw=()=>{box.innerHTML='';PRO_IDS.filter(i=>!cat||PRO_DEFS[i].cat===cat).forEach(id=>{const d=PRO_DEFS[id];const b=document.createElement('button');b.className='rp';b.title=d.n+' – tipologia prodotta da: '+d.b;
     b.innerHTML=`<img src="parts/thumbs/pro_${id}.webp" alt="" loading="lazy"><b>${d.n}</b><span>${d.cat} · personalizzabile · catalogo p. ${d.p}</span>`;
     {const img=b.querySelector('img');img.onerror=()=>{img.onerror=null;thumbOf('pro_'+id,()=>buildPro(id),img);};}
-    b.onclick=()=>{placing={n:d.n,cat:'Ricambi PRO',fn:()=>buildPro(id)};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+d.n+' · poi in Officina scegli misure, colori e finiture · Esc per annullare';};box.appendChild(b);});};
+    b.onclick=()=>{if(auto()){window.CFG.mount({k:'PRO-'+id,id,n:d.n,cat:d.cat,t:d.type,b:d.b,p:d.p});return;}placing={n:d.n,cat:'Ricambi PRO',fn:()=>buildPro(id)};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+d.n+' · poi in Officina scegli misure, colori e finiture · Esc per annullare';};box.appendChild(b);});};
   flt.innerHTML='<button class="chip on" data-c="">Tutti</button>'+cats.map(c=>`<button class="chip" data-c="${c}">${c}</button>`).join('');
   flt.onclick=e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.c;flt.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b));draw();};draw();}}
  function rebuildPro(o,opts){const n=buildPro(o.userData.pro,opts);n.position.copy(o.position);n.quaternion.copy(o.quaternion);n.scale.copy(o.scale);
@@ -193,7 +222,7 @@ export function initOfficina(ctx){
   const box=new THREE.Box3();tires.forEach(o=>box.expandByObject(o));const s=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());
   const R=s.y/2,len=s.x;const centers=[new THREE.Vector3(box.min.x+R,R+box.min.y,c.z),new THREE.Vector3(box.max.x-R,R+box.min.y,c.z)];
   tires.forEach(o=>{pushUndo(o);o.visible=false;});
-  centers.forEach((cc,i)=>{const t=ACC.tire({kind,whitewall:ww,rimIn:16,width:i===0?.16:.13,aspect:.75});const k=R/t.userData.R;t.scale.setScalar(k);t.position.copy(cc);t.userData.acc=true;t.userData.accName='Pneumatico '+(i===0?'posteriore':'anteriore');t.userData.kbType='tire';t.traverse(c=>{if(c.isMesh)c.userData.accPart=t;});scene.add(t);added.push(t);undo.push({o:t,added:1});});
+  centers.forEach((cc,i)=>{const to={kind,whitewall:ww,rimIn:16,width:i===0?.16:.13,aspect:.75},t=ACC.tire(to);t.userData.ricetta={tipo:'gomma',o:to};const k=R/t.userData.R;t.scale.setScalar(k);t.position.copy(cc);t.userData.acc=true;t.userData.accName='Pneumatico '+(i===0?'posteriore':'anteriore');t.userData.kbType='tire';t.traverse(c=>{if(c.isMesh)c.userData.accPart=t;});scene.add(t);added.push(t);undo.push({o:t,added:1});});
   advise({userData:{kbType:'tire'}},'modificato');invalidate();};
 
  $('accWheels').onclick=()=>{const m=ctx.getModel();if(!m)return;const hideCats=['Pneumatici','Cerchi'];const hid=[],tires=[];
@@ -201,7 +230,7 @@ export function initOfficina(ctx){
   if(!tires.length){ctx.toast('Non trovo le ruote in questo modello');return;}
   const box=new THREE.Box3();tires.forEach(o=>box.expandByObject(o));const sz=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());const R=sz.y/2;
   hid.forEach(o=>{pushUndo(o);o.visible=false;});
-  [[box.min.x+R,.17],[box.max.x-R,.12]].forEach(([x,w],i)=>{const wh=ACC.wheel({style:$('whStyle').value,finish:$('whFin').value,whitewall:$('whWW').checked,tireKind:$('whWW').checked?'firestone':'road',width:w,rimIn:i?18:17});
+  [[box.min.x+R,.17],[box.max.x-R,.12]].forEach(([x,w],i)=>{const wo={style:$('whStyle').value,finish:$('whFin').value,whitewall:$('whWW').checked,tireKind:$('whWW').checked?'firestone':'road',width:w,rimIn:i?18:17},wh=ACC.wheel(wo);wh.userData.ricetta={tipo:'ruota',o:wo};
    wh.scale.setScalar(R/wh.userData.R);wh.position.set(x,R+box.min.y,c.z);wh.userData.acc=true;wh.userData.accName='Ruota '+(i?'anteriore':'posteriore');wh.userData.kbType='wheel';
    const tag=()=>wh.traverse(q=>{if(q.isMesh)q.userData.accPart=wh;});tag();wh.addEventListener('ready',()=>{tag();invalidate();});scene.add(wh);added.push(wh);undo.push({o:wh,added:1});});
   advise({userData:{kbType:'wheel'}},'modificato');invalidate();};
@@ -211,12 +240,12 @@ export function initOfficina(ctx){
  $('pEnd').onclick=()=>{if(!building||building.pts.length<2){ctx.toast('Servono almeno due punti');return;}const P={pts:building.pts.map(p=>p.clone()),handles:[]};building=null;$('placeHint').style.display='none';makePipe(P);pipes.push(P);};
  function opts(){return {r:+$('pR').value/1000,mufR:+$('pMR').value/1000,mufLen:+$('pML').value/1000,tip:$('pTip').value,mat:$('pMat').value,muffler:$('pMuf').checked};}
  function makePipe(P){if(P.obj){scene.remove(P.obj);P.obj.traverse(c=>c.geometry&&c.geometry.dispose());}
-  const o=ACC.pipe({pts:P.pts,...opts()});o.userData={acc:true,accName:'Scarico custom',kbType:'exhaust',pipe:P};o.traverse(c=>{if(c.isMesh)c.userData.accPart=o;});scene.add(o);P.obj=o;if(!added.includes(o))added.push(o);
+  if(!P.opz)P.opz=opts();const o=ACC.pipe({pts:P.pts,...P.opz});o.userData={acc:true,accName:'Scarico custom',kbType:'exhaust',pipe:P};o.traverse(c=>{if(c.isMesh)c.userData.accPart=o;});scene.add(o);P.obj=o;if(!added.includes(o))added.push(o);
   if(!P.handles.length)P.pts.forEach((p,i)=>{const h=new THREE.Mesh(new THREE.SphereGeometry(.012,16,12),new THREE.MeshBasicMaterial({color:0xe3a63b,depthTest:false}));h.renderOrder=9;h.position.copy(p);h.userData={handleOf:P,idx:i};h.visible=$('pHandles').checked;scene.add(h);P.handles.push(h);});
   invalidate();}
  function rebuildPipe(P,live){P.handles.forEach((h,i)=>P.pts[i].copy(h.position));if(live&&P._t)return;P._t=setTimeout(()=>{P._t=null;makePipe(P);},live?60:0);}
  $('pHandles').onchange=()=>{pipes.forEach(P=>P.handles.forEach(h=>h.visible=$('pHandles').checked));invalidate();};
- for(const id of ['pR','pMR','pML','pTip','pMat','pMuf'])$(id).oninput=$(id).onchange=()=>{const P=sel&&sel.userData.pipe||pipes[pipes.length-1];if(P)makePipe(P);};
+ for(const id of ['pR','pMR','pML','pTip','pMat','pMuf'])$(id).oninput=$(id).onchange=()=>{const P=sel&&sel.userData.pipe||pipes[pipes.length-1];if(P){P.opz=opts();makePipe(P);ctx.modificato&&ctx.modificato();}};
  const dots=[];
  function addPoint(hit){const n=hit.face?hit.face.normal.clone().transformDirection(hit.object.matrixWorld):new THREE.Vector3(0,0,1);const p=hit.point.clone().addScaledVector(n,+$('pR').value/1000+.012);building.pts.push(p);
   const d=new THREE.Mesh(new THREE.SphereGeometry(.01,12,8),new THREE.MeshBasicMaterial({color:0xe3a63b,depthTest:false}));d.renderOrder=9;d.position.copy(p);scene.add(d);dots.push(d);setTimeout(()=>{scene.remove(d);invalidate();},8000);invalidate();}
@@ -225,47 +254,71 @@ export function initOfficina(ctx){
  function handleClick(hit,active){
   if(placing){if(hit)placeAt(hit);return true;}
   if(building){if(hit)addPoint(hit);return true;}
-  if(active!=='edit'&&active!=='acc')return false;
-  if(!hit){select(null);return true;}
-  const o=hit.object;if(o.userData.handleOf){select(o);return true;}if(o.userData.accPart){select(o.userData.accPart);return true;}
-  if(mode==='piece'){select(extract(o,hit.faceIndex));}else select(componenteDi(o,hit.faceIndex));return true;}
- addEventListener('keydown',e=>{if(e.key==='Escape'){placing=null;building=null;$('placeHint').style.display='none';}
+  if(TOOL==='sel')return false; // «Seleziona»: tocchi e Gruppo della configurazione, nessuna maniglia
+  if(!hit){select(null);ctx.cfgSelect&&ctx.cfgSelect(null);setTool('sel');ctx.toast('Selezione: tocca un pezzo per selezionarlo (Gruppo per il componente intero)');return true;}
+  const o=hit.object;if(o.userData.handleOf){select(o);return true;}
+  inClick=true;try{
+   if(o.userData.accPart){ctx.cfgSelectAcc&&ctx.cfgSelectAcc(o.userData.accPart);select(o.userData.accPart);return true;}
+   if(ctx.cfgSelectAt){ctx.cfgSelectAt(hit);if(mode==='mesh'&&ctx.cfgSelectComp)ctx.cfgSelectComp();const t=bersaglio(ctx.cfgSel&&ctx.cfgSel());select(t||extract(o,hit.faceIndex));}
+   else if(mode==='piece'){select(extract(o,hit.faceIndex));}else select(componenteDi(o,hit.faceIndex));
+  }finally{inClick=false;}return true;}
+ addEventListener('keydown',e=>{if(e.key==='Escape'){if(placing||building){placing=null;building=null;$('placeHint').style.display='none';}else if(TOOL!=='sel')setTool('sel');}
   if(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
-  if(e.key==='Delete'&&sel)$('eDel').click();if((e.ctrlKey||e.metaKey)&&e.key==='z')$('eUndo').click();if(e.key==='g')$('eMode').value='translate',tc.setMode('translate');if(e.key==='r')$('eMode').value='rotate',tc.setMode('rotate');if(e.key==='s')$('eMode').value='scale',tc.setMode('scale');});
+  if(e.key==='Delete'&&sel)$('eDel').click();if((e.ctrlKey||e.metaKey)&&e.key==='z')$('eUndo').click();if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='g')setTool('translate');if(e.key==='r')setTool('rotate');if(e.key==='s')setTool('scale');if(e.key==='q')setTool('sel');});
+ /* barra degli strumenti sulla vista */
+ document.querySelectorAll('#tools [data-tool]').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);if(b.dataset.tool==='sel')ctx.toast('Selezione: tocca un pezzo · «Gruppo» per il componente intero · nessuna maniglia');});
+ {const f=$('tFine');if(f){f.style.display='none';f.onclick=()=>{setTool('sel');ctx.toast('Fatto: torni alla selezione dei pezzi, senza maniglie');};}}
+ {const c=$('tCal');if(c){c.classList.toggle('on',CAL.attiva);c.onclick=()=>{CAL.attiva=!CAL.attiva;c.classList.toggle('on',CAL.attiva);ctx.toast(CAL.attiva?'Punti di aggancio attivi: trascinando, il pezzo si aggancia a centri, facce, assi ruota e mezzeria':'Punti di aggancio spenti: spostamento libero');};}}
+ /* ---------- aggancio rapido ---------- */
+ function spostaMondo(o,d){const par=o.parent;if(!par){o.position.add(d);return;}par.updateMatrixWorld(true);const a=par.worldToLocal(new THREE.Vector3()),b=par.worldToLocal(d.clone());o.position.add(b.sub(a));o.updateMatrixWorld(true);}
+ const AGG={
+  posto:o=>{if(window.CFG&&window.CFG.riaggancia&&window.CFG.riaggancia(o)){ctx.toast('Rimesso al posto giusto: stessa posizione, inclinazione e misura del pezzo di serie');return true;}ctx.toast('Il posto automatico c\'è per i ricambi reali montati dal catalogo; per gli altri usa i punti di aggancio');return false;},
+  mezzeria:o=>{const c=new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3());spostaMondo(o,new THREE.Vector3(0,0,-c.z));ctx.toast('Centrato sulla mezzeria della moto');return true;},
+  terra:o=>{const M=ctx.getModel();if(!M)return false;const g=new THREE.Box3().setFromObject(M).min.y,b=new THREE.Box3().setFromObject(o);spostaMondo(o,new THREE.Vector3(0,g-b.min.y,0));ctx.toast('Appoggiato a terra');return true;},
+  gira:o=>{const c0=centerOf(o);o.rotateOnWorldAxis(new THREE.Vector3(0,1,0),Math.PI);keepCenter(o,c0);ctx.toast('Verso invertito: davanti ↔ dietro');return true;},
+  dritto:o=>{const e=new THREE.Euler().setFromQuaternion(o.getWorldQuaternion(new THREE.Quaternion()));const r=x=>Math.round(x/(Math.PI/2))*(Math.PI/2);const qw=new THREE.Quaternion().setFromEuler(new THREE.Euler(r(e.x),r(e.y),r(e.z)));
+   const c0=centerOf(o);const pq=o.parent?o.parent.getWorldQuaternion(new THREE.Quaternion()):new THREE.Quaternion();o.quaternion.copy(pq.invert().multiply(qw));keepCenter(o,c0);ctx.toast('Raddrizzato sugli assi della moto');return true;}};
+ document.querySelectorAll('[data-agg]').forEach(b=>b.onclick=()=>{if(!need()){ctx.toast('Seleziona prima un pezzo');return;}pushUndo(sel);if(AGG[b.dataset.agg](sel)){syncScale();invalidate();ctx.modificato&&ctx.modificato();}});
 
  /* ---------- rotazioni esatte e capovolgimento attorno al centro del pezzo, sui suoi assi ---------- */
  const AX={x:new THREE.Vector3(1,0,0),y:new THREE.Vector3(0,1,0),z:new THREE.Vector3(0,0,1)};
  /* perno di rotazione e scala: asse ruota per i pezzi delle ruote (pivotL, coordinate locali), altrimenti il centro del pezzo */
  function centerOf(o){if(o.userData&&o.userData.pivotL){o.updateMatrixWorld(true);return o.localToWorld(o.userData.pivotL.clone());}const b=new THREE.Box3().setFromObject(o);return b.isEmpty()?o.getWorldPosition(new THREE.Vector3()):b.getCenter(new THREE.Vector3());}
  function keepCenter(o,c0){o.updateMatrixWorld(true);const c1=centerOf(o);const d=c0.sub(c1);if(o.parent){const inv=new THREE.Matrix4().copy(o.parent.matrixWorld).invert();const p0=o.position.clone().applyMatrix4(o.parent.matrixWorld);p0.add(d);o.position.copy(p0.applyMatrix4(inv));}else o.position.add(d);o.updateMatrixWorld(true);}
- function exactRotate(axis,deg){if(!sel){ctx.toast('Seleziona prima un pezzo');return;}if(!deg)return;pushUndo(sel);const c0=centerOf(sel);
+ function exactRotate(axis,deg){if(!need()){ctx.toast('Seleziona prima un pezzo');return;}if(!deg)return;pushUndo(sel);const c0=centerOf(sel);
   const sp=$('eAxSpace')?$('eAxSpace').value:'own';
   if(sp==='own')sel.rotateOnAxis(AX[axis],deg*Math.PI/180);
   else{const q=new THREE.Quaternion().setFromAxisAngle(AX[axis],deg*Math.PI/180);const pq=sel.parent?sel.parent.getWorldQuaternion(new THREE.Quaternion()):new THREE.Quaternion();
    const wq=sel.getWorldQuaternion(new THREE.Quaternion());const nw=q.multiply(wq);sel.quaternion.copy(pq.invert().multiply(nw));}
   keepCenter(sel,c0);advise(sel,'ruotato di '+deg+'°');syncScale();invalidate();ctx.toast('Pezzo ruotato di '+deg+'° sull\'asse '+({x:'longitudinale',y:'verticale',z:'trasversale'})[axis]);}
- function flip(axis){if(!sel){ctx.toast('Seleziona prima un pezzo');return;}pushUndo(sel);const c0=centerOf(sel);sel.scale[axis]*=-1;keepCenter(sel,c0);advise(sel,'capovolto');syncScale();invalidate();
+ function flip(axis){if(!need()){ctx.toast('Seleziona prima un pezzo');return;}pushUndo(sel);const c0=centerOf(sel);sel.scale[axis]*=-1;keepCenter(sel,c0);advise(sel,'capovolto');syncScale();invalidate();
   ctx.toast(({z:'Pezzo specchiato orizzontalmente (destra ↔ sinistra)',y:'Pezzo capovolto verticalmente (sopra ↔ sotto)',x:'Pezzo specchiato avanti ↔ indietro'})[axis]);}
  document.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>exactRotate($('eAxis').value,+b.dataset.rot));
  document.querySelectorAll('[data-flip]').forEach(b=>b.onclick=()=>flip(b.dataset.flip));
  document.querySelectorAll('[data-rx]').forEach(b=>b.onclick=()=>exactRotate(b.dataset.rx,(+b.dataset.dir)*(+$('eStep').value||5)));
- document.querySelectorAll('[data-scl]').forEach(b=>b.onclick=()=>{if(!sel){ctx.toast('Seleziona prima un pezzo');return;}pushUndo(sel);const c0=centerOf(sel);sel.scale.multiplyScalar(+b.dataset.scl);sel.updateMatrixWorld(true);keepCenter(sel,c0);syncScale();ctx.invalidate&&ctx.invalidate();});
+ document.querySelectorAll('[data-scl]').forEach(b=>b.onclick=()=>{if(!need()){ctx.toast('Seleziona prima un pezzo');return;}pushUndo(sel);const c0=centerOf(sel);sel.scale.multiplyScalar(+b.dataset.scl);sel.updateMatrixWorld(true);keepCenter(sel,c0);syncScale();ctx.invalidate&&ctx.invalidate();});
  $('eRotDeg')&&($('eRotGo').onclick=()=>exactRotate($('eAxis').value,+$('eRotDeg').value||0));
  const snapSet=()=>{const v=+$('eSnap').value;tc.setRotationSnap(v?v*Math.PI/180:null);tc.setTranslationSnap(v?0.005:null);};$('eSnap').onchange=snapSet;snapSet();
  /* ---------- vernice del singolo pezzo ---------- */
  $('ePFin').innerHTML=ctx.FIN.filter(f=>f[0]!=='orig').map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
- $('ePApply').onclick=()=>{if(!sel){ctx.toast('Seleziona prima un pezzo');return;}const col=$('ePColor').value,f=$('ePFin').value;
-  const paint=(m0)=>{const m=new THREE.MeshPhysicalMaterial({name:(m0.name||'pezzo')+' (custom)',color:new THREE.Color(col),normalMap:m0.normalMap||null,side:m0.side,transparent:m0.transparent,opacity:m0.opacity});Object.assign(m,ctx.finishParams(f));return m;};
+ $('ePApply').onclick=()=>{if(!need()){ctx.toast('Seleziona prima un pezzo');return;}const col=$('ePColor').value,f=$('ePFin').value;
+  const paint=(m0)=>{const m=new THREE.MeshPhysicalMaterial({name:(m0.name||'pezzo')+' (custom)',color:new THREE.Color(col),normalMap:m0.normalMap||null,side:m0.side,transparent:m0.transparent,opacity:m0.opacity});Object.assign(m,ctx.finishParams(f));m.userData.mod=1;m.userData.fin=f;return m;};
   const uv=c=>{if(c.material&&c.material.normalMap&&window.__uvCubo)window.__uvCubo(c);};
   if(sel.isMesh){if(!Array.isArray(sel.material)){sel.material=paint(sel.material);uv(sel);}}
   else sel.traverse(c=>{if(c.isMesh&&!Array.isArray(c.material)&&!/Lente|LED|Gomma|Vetro|Parabola|Fascia|Policarbonato/.test(c.material.name||'')&&!/^(gomma|vetro|fanale|frecce|manopole|pedane|sella)$/.test((c.material.userData&&c.material.userData.ruolo)||'')){c.material=paint(c.material);uv(c);}});
-  invalidate();};
+  invalidate();ctx.modificato&&ctx.modificato();};
  /* ---------- copia / incolla tra moto ---------- */
  const clip=[];
- $('eCopy').onclick=()=>{if(!sel){ctx.toast('Seleziona prima un pezzo');return;}let o;if(sel.isMesh){const gc=sel.geometry.clone();gc.computeBoundingBox();const cc=gc.boundingBox.getCenter(new THREE.Vector3());gc.translate(-cc.x,-cc.y,-cc.z);const m=new THREE.Mesh(gc,Array.isArray(sel.material)?sel.material.map(x=>x.clone()):sel.material.clone());
+ $('eCopy').onclick=()=>{if(!need()){ctx.toast('Seleziona prima un pezzo');return;}let o;if(sel.isMesh){const gc=sel.geometry.clone();gc.computeBoundingBox();const cc=gc.boundingBox.getCenter(new THREE.Vector3());gc.translate(-cc.x,-cc.y,-cc.z);const m=new THREE.Mesh(gc,Array.isArray(sel.material)?sel.material.map(x=>x.clone()):sel.material.clone());
    const wp=new THREE.Vector3(),wq=new THREE.Quaternion(),ws=new THREE.Vector3();sel.matrixWorld.decompose(wp,wq,ws);m.quaternion.copy(wq);m.scale.copy(ws);o=new THREE.Group();o.add(m);}
   else o=sel.clone(true);const nm=$('eName').textContent;clip.push({n:nm,o,kb:sel.userData.kbType||'generic'});$('eClipN').textContent=clip.length+' pezzi negli appunti';
-  const L=$('clipLib');L.innerHTML='';clip.forEach((c,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=c.n;b.onclick=()=>{placing={n:c.n,cat:'Copiati',fn:()=>{const g=c.o.clone(true);g.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;}});g.userData={type:c.kb};return g;}};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+c.n+' · Esc per annullare';};L.appendChild(b);});
+  const L=$('clipLib');L.innerHTML='';clip.forEach((c,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=c.n;b.onclick=()=>{placing={n:c.n,cat:'Copiati',ric:{tipo:'copia'},fn:()=>{const g=c.o.clone(true);g.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;}});g.userData={type:c.kb};return g;}};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+c.n+' · Esc per annullare';};L.appendChild(b);});
   ctx.toast('Copiato negli appunti: '+nm);};
- return {swapSel:o=>{if(o&&inScena(o))select(o);else select(null);},centraAsse,handleClick,thumbOf,placeItem:it=>window.__cgPlace&&window.__cgPlace(it),edit:o=>{select(o);},reset(){select(null);added.forEach(a=>scene.remove(a));added=[];pipes.length=0;undo=[];},isBusy:()=>!!(placing||building),tc};
+ return {swapSel:o=>{if(o&&inScena(o))select(o);else select(null);},centraAsse,handleClick,thumbOf,placeItem:it=>window.__cgPlace&&window.__cgPlace(it),edit:o=>{select(o);},reset(){select(null);setTool('sel',true);added.forEach(a=>scene.remove(a));added=[];pipes.length=0;undo=[];},isBusy:()=>!!(placing||building),tc,
+  setTool,tool:()=>TOOL,adopt,need,bersaglio,calamita:CAL,added:()=>added,pipes:()=>pipes,makePipe:P=>{makePipe(P);pipes.push(P);},
+  segnaRicetta:(o,r)=>{o.userData.ricetta=r;},ACCLIB:ACC.CATALOG,ACCFN:{tire:ACC.tire,wheel:ACC.wheel},
+  pernoDa:(objs,nome)=>perno(objs,nome),applicaSlot:o=>applySlots(o),
+  registraAccessorio:o=>{o.traverse(c=>{if(c.isMesh)c.userData.accPart=o;});if(!added.includes(o))added.push(o);if(o.userData.pipe&&!pipes.includes(o.userData.pipe))pipes.push(o.userData.pipe);},
+  creaPipe:P=>{makePipe(P);return P.obj;}};
 }

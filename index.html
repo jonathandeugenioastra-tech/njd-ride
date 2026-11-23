@@ -83,6 +83,22 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;p
 a{color:var(--acc2)}
 #view{position:relative;min-width:0;min-height:0;background:#1d1f24}
 #view canvas{display:block;width:100%;height:100%;cursor:grab}
+#tools{position:absolute;left:8px;top:8px;z-index:3;display:flex;flex-direction:column;gap:5px}
+#tools button{display:flex;flex-direction:column;align-items:center;gap:1px;width:60px;padding:5px 3px;border-radius:10px;border:1px solid var(--line);background:rgba(18,20,24,.86);color:var(--text);font-size:10px;cursor:pointer;backdrop-filter:blur(4px)}
+#tools button i{font-style:normal;font-size:17px;line-height:1.1}
+#tools button.on{border-color:var(--acc);background:rgba(232,163,61,.24);color:#fff}
+#tools #tCal.on{border-color:#35e0ff;background:rgba(53,224,255,.16)}
+#tools #tFine{background:#1d6b3a;border-color:#33a35d;color:#fff;font-weight:600}
+.pgLista{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.pgItem{display:flex;gap:10px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px;flex-wrap:wrap}
+.pgItem.on{border-color:var(--acc)}
+.modal img.pgMini,.pgMini{width:120px;height:68px;object-fit:cover;border-radius:7px;background:#0d0f12;flex:none;display:block}
+.pgTxt{flex:1;min-width:150px;display:flex;flex-direction:column;gap:2px}.pgTxt b{font-size:13.5px}.pgTxt span{font-size:11.5px;color:var(--muted)}.pgTxt .inp{width:100%}
+.pgBtn{display:flex;gap:5px;flex-wrap:wrap}
+.pgRipresa{position:absolute;left:50%;transform:translateX(-50%);bottom:10px;z-index:5;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:94%;background:rgba(14,16,19,.95);border:1px solid var(--acc);border-radius:10px;padding:7px 10px;font-size:12px}
+.snapLab{position:absolute;z-index:4;pointer-events:none;background:rgba(8,26,32,.92);color:#8ff2ff;border:1px solid #35e0ff;border-radius:6px;padding:2px 7px;font-size:11.5px;white-space:nowrap}
+@media (max-width:900px){#tools{left:5px;top:5px;gap:4px;flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 10px)}#tools button{width:47px;font-size:8.5px;padding:3px 1px;border-radius:9px}#tools button i{font-size:15px}}
+@media (max-width:520px){header .logo small{display:none}header .emb{width:34px!important;height:34px!important}header .btn{padding:5px 7px}}
 .hud{position:absolute;display:flex;gap:6px;flex-wrap:wrap;align-items:center}.hud.b{left:12px;right:12px;bottom:12px;justify-content:center}.hud.t{left:12px;top:12px}
 .glass{background:rgba(14,16,20,.74);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px}
 .glass .btn{background:transparent;border-color:transparent}.glass .btn:hover{background:rgba(255,255,255,.07)}.glass .btn.on{color:var(--acc2);background:rgba(227,166,59,.13)}
@@ -157,6 +173,7 @@ a{color:var(--acc2)}
   <div class="sub">Modelli 3D reali · dati d'officina ufficiali · render 4K<br>© 2026 dott. Jonathan D'Eugenio</div>
   <div class="sp"></div>
   <button class="btn" id="bHome">Benvenuto</button><button class="btn" id="bInfo">Informazioni</button><button class="btn" id="bImp">Importa GLB</button><input type="file" id="fGlb" accept=".glb,.gltf" hidden>
+  <button class="btn" id="bProg" title="Salva, apri, rinomina o elimina i tuoi progetti">Progetti</button>
   <button class="btn pri" id="b4k">Render 4K</button>
 </header>
 <main>
@@ -202,6 +219,9 @@ a{color:var(--acc2)}
       <div class="row"><label>Profondità Z</label><input type="range" id="esz" min=".3" max="2.5" step=".01" value="1"><b id="osz">100%</b></div>
       <label class="toggle" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" id="eLock"> proporzionale</label>
       <div class="row" style="flex-wrap:wrap"><button class="btn sm" id="eDel">Elimina</button><button class="btn sm" id="eDup">Duplica sull'altro lato</button><button class="btn sm" id="eReset">Ripristina pezzo</button><button class="btn sm pri" id="eAsse" style="display:none" title="Riporta gomma, cerchio o ruota esattamente sull'asse del mozzo (centro, piano e inclinazione)">Centra sull'asse</button><button class="btn sm" id="eUndo">Annulla</button><button class="btn sm" id="eShowAll">Mostra tutto</button><button class="btn sm" id="eMirror" style="display:none"></button></div>
+      <h3 style="margin-top:10px">Aggancio</h3>
+      <div class="row" style="flex-wrap:wrap;gap:6px"><button class="btn sm pri" data-agg="posto" title="Ricalcola posizione, inclinazione e misura dal pezzo di serie che sostituisce">Rimetti al posto giusto</button><button class="btn sm" data-agg="gira">Gira di 180°</button><button class="btn sm" data-agg="dritto">Raddrizza</button><button class="btn sm" data-agg="mezzeria">Centra sulla mezzeria</button><button class="btn sm" data-agg="terra">Appoggia a terra</button></div>
+      <div class="note">Con <b>Sposta</b> il pezzo si aggancia da solo a centri, facce e spigoli degli altri pezzi, agli assi delle ruote e alla mezzeria della moto (calamita <b>⌖ Aggancio</b> accesa). <b>Fine</b>, <span class="kbd">Esc</span> o un tocco nel vuoto tolgono le maniglie e tornano alla selezione.</div>
       <h3 style="margin-top:10px">Dimensione</h3>
       <div class="row" style="flex-wrap:wrap;gap:6px"><button class="btn sm" data-scl="0.95">− 5%</button><button class="btn sm" data-scl="0.99">− 1%</button><button class="btn sm" data-scl="1.01">+ 1%</button><button class="btn sm" data-scl="1.05">+ 5%</button><span class="note">tutto il pezzo, in proporzione</span></div>
       <h3 style="margin-top:10px">Ruota e capovolgi (esatto)</h3>
@@ -226,6 +246,7 @@ a{color:var(--acc2)}
   </section>
   <section class="pane" id="p-acc">
     <h3>Catalogo accessori</h3><div class="note">Oltre 2.000 articoli con codice, tutti modificabili: cerca per nome, tipo, colore o codice, scegli l'articolo e clicca sulla moto dove montarlo. In <b>Officina</b> poi regoli misure, colori e finiture.</div>
+    <label class="toggle" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" id="accAuto" checked> Montaggio automatico al posto giusto (sostituisce il pezzo di serie)</label>
     <div class="row"><input id="catQ" type="search" placeholder="Cerca: cupolino fumé, scarico slash, CG-SEL-0012…" style="flex:1;min-width:0;background:#15171b;color:#eee;border:1px solid #3a3d44;border-radius:8px;padding:8px 10px;font:inherit"></div>
     <div class="chips" id="catCats" style="margin:6px 0"></div><div class="note" id="catCount"></div><div id="catGrid" class="rgrid"></div><div class="row" id="catPager" style="justify-content:space-between"></div>
     <h3>Sostituisci le gomme della moto</h3>
@@ -309,6 +330,14 @@ a{color:var(--acc2)}
 <div id="view">
   <div id="load"><img src="badge_512.png" alt="NJ.D' RIDE" style="width:min(300px,50vw)"><div class="logo">NJ.D' <b>RIDE</b></div><div id="loadT">Caricamento…</div><div class="bar"><i id="loadB"></i></div></div>
   <div id="tip" style="display:none!important"></div>
+  <div id="tools" aria-label="Strumenti">
+    <button data-tool="sel" class="on" title="Seleziona i pezzi, senza maniglie (Q · Esc)"><i>⬚</i>Seleziona</button>
+    <button data-tool="translate" title="Sposta con le maniglie (G)"><i>✥</i>Sposta</button>
+    <button data-tool="rotate" title="Ruota con le maniglie (R)"><i>⟳</i>Ruota</button>
+    <button data-tool="scale" title="Ridimensiona con le maniglie (S)"><i>⤢</i>Scala</button>
+    <button id="tCal" class="on" title="Punti di aggancio: il pezzo si aggancia a centri, facce, spigoli, assi ruota e mezzeria"><i>⌖</i>Aggancio</button>
+    <button id="tFine" title="Fine: togli le maniglie e torna alla selezione"><i>✓</i>Fine</button>
+  </div>
 </div>
 <div id="msgline"><span id="toast"></span><span id="hov" style="color:var(--muted)"></span><span id="placeHint"></span><span id="decalHint">Clicca sulla superficie per applicare la grafica · Esc per annullare</span></div>
 <div id="qbar">
@@ -332,7 +361,7 @@ a{color:var(--acc2)}
   <div class="cp">© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Marchi e design delle moto appartengono ai rispettivi titolari.</div>
 </div></div>
 <div class="modal" id="mInfo"><div class="box" style="max-width:720px">
-  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.7.0</b><button class="btn sm" data-close>Chiudi</button></div>
+  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.8.0</b><button class="btn sm" data-close>Chiudi</button></div>
   <p>© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Software, interfaccia, libreria accessori, consulente meccanico e testi sono opera dell'autore.</p>
   <h3>Modelli 3D di terzi (licenza CC BY 4.0)</h3>
   <ul class="note" id="infoCred"></ul>
@@ -362,7 +391,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import { initOfficina } from './js/officina.js';
-import { initConfig } from './js/config.js';
+import { initConfig, impostaDiario } from './js/config.js';
+import { initProgetti } from './js/progetti.js';
 import { TECH, FAMIGLIE, MANUALI_UFF, techHTML } from './js/techdb.js';
 import { marketHTML } from './js/market.js';
 import { PARTS } from './js/parts.js';
@@ -431,7 +461,7 @@ const SW=[['Rosso candy','#7e0b12','candy'],['Nero vivid','#0a0a0c','gloss'],['P
 /* ---------------- renderer ---------------- */
 const view=document.getElementById('view');
 /* telefono/tablet: memoria grafica limitata (iOS chiude la pagina se la supera). Se l'avvio precedente non è arrivato in fondo, si riparte in modalità leggera */
-const VERSIONE='1.7.2';{const vf=document.getElementById('verFoot');if(vf)vf.textContent='v'+VERSIONE;}
+const VERSIONE='1.8.0';{const vf=document.getElementById('verFoot');if(vf)vf.textContent='v'+VERSIONE;}
 const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 let FAILS=0,LASTF='';try{FAILS=+(localStorage.getItem('njd_fail')||0);if(localStorage.getItem('njd_avvio')==='in_corso')FAILS++;LASTF=localStorage.getItem('njd_fase')||'';localStorage.setItem('njd_fail',String(FAILS));localStorage.setItem('njd_avvio','in_corso');}catch(e){}
 const SAFE=MOBILE&&FAILS>=1,NOAUTO=MOBILE&&FAILS>=2;
@@ -485,7 +515,7 @@ function texDettaglio(seed,kind){const S=MOBILE?512:1024,d=new Uint8Array(S*S*4)
     for(let y=0;y<S;y++)for(let x=0;x<S;x++){const hx=h[y*S+(x+1)%S]-h[y*S+(x-1+S)%S],hy=h[((y+1)%S)*S+x]-h[((y-1+S)%S)*S+x],l=Math.hypot(hx*2.2,hy*2.2,1),i=(y*S+x)*4;
       d[i]=128-hx*2.2/l*127;d[i+1]=128-hy*2.2/l*127;d[i+2]=128+127/l;d[i+3]=255;}}
   const t=new THREE.DataTexture(d,S,S,THREE.RGBAFormat);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.magFilter=THREE.LinearFilter;t.minFilter=THREE.LinearMipmapLinearFilter;t.generateMipmaps=true;t.needsUpdate=true;return t;}
-const FLAKE=texDettaglio(7,'flake'),GRAIN=texDettaglio(3,'grain');FLAKE.repeat.set(12,12);GRAIN.repeat.set(5,5);
+const FLAKE=texDettaglio(7,'flake'),GRAIN=texDettaglio(3,'grain');FLAKE.repeat.set(12,12);GRAIN.repeat.set(5,5);window.__texNoti={FLAKE,GRAIN};
 
 /* ---------------- stato ---------------- */
 let model=null,cur=null,parts=new Map(),selected=null,hidden=new Set(),decals=[],lastDecal=null;
@@ -621,6 +651,7 @@ function frame(root){const box=new THREE.Box3().setFromObject(root);const s=box.
   const sz=box.getSize(new THREE.Vector3());const along=sz.x>sz.z?'x':'z';return {h:sz.y,along};}
 let HERO=[2.8,1.1,-3.2];
 async function loadModel(m,url){
+  if(window.__PG)try{await window.__PG.primaDiCambiare();}catch(e){}
   const T0=performance.now(),TM={};const L=document.getElementById('load');L.style.display='flex';document.getElementById('loadT').textContent='Caricamento '+(m?m.n:'modello')+'…';
   if(model){scene.remove(model);decals.forEach(d=>{d.parent&&d.parent.remove(d);d.geometry&&d.geometry.dispose();});decals=[];
     /* libera la memoria grafica del modello precedente: sul telefono cambiare moto più volte la esauriva */
@@ -641,14 +672,16 @@ async function loadModel(m,url){
   TM.prep=Math.round(performance.now()-T0);buildParts();renderInfo();renderSheet();
   // materiali preparati prima di mostrare la moto: niente scatti al primo movimento
   try{document.getElementById('loadT').textContent='Preparazione dei materiali…';fase('materiali '+(m?m.id:'file'));if(renderer.compileAsync){const rt0=renderer.getRenderTarget();renderer.setRenderTarget(composer.readBuffer);try{await renderer.compileAsync(scene,camera);}finally{renderer.setRenderTarget(rt0);}}}catch(e){}
-  TM.shader=Math.round(performance.now()-T0);window.__loadT=TM;fase('primo disegno '+(m?m.id:'file'));setTimeout(()=>{try{localStorage.setItem('njd_avvio','ok');localStorage.setItem('njd_fail','0');localStorage.setItem('njd_fase','completato');}catch(e){}},3000);if(SAFE&&!window.__safeMsg){window.__safeMsg=1;setTimeout(()=>toast('Modalità leggera: grafica ridotta per la memoria del telefono'),800);}console.info('caricamento',m?m.id:'glb',TM);shadowDirty=true;L.style.display='none';document.getElementById('loadB').style.width='0';if(window.CFG){CFG.reset();setTimeout(()=>CFG.fitAll(),50);}{const m0=model;setTimeout(()=>{try{STK.buildIndex(model,()=>{const go=()=>{if(model===m0){try{separaRuote();}catch(e){console.warn('ruote',e);}}};window.requestIdleCallback?requestIdleCallback(go,{timeout:900}):setTimeout(go,60);});}catch(e){}},120);}
+  TM.shader=Math.round(performance.now()-T0);window.__loadT=TM;fase('primo disegno '+(m?m.id:'file'));setTimeout(()=>{try{localStorage.setItem('njd_avvio','ok');localStorage.setItem('njd_fail','0');localStorage.setItem('njd_fase','completato');}catch(e){}},3000);if(SAFE&&!window.__safeMsg){window.__safeMsg=1;setTimeout(()=>toast('Modalità leggera: grafica ridotta per la memoria del telefono'),800);}console.info('caricamento',m?m.id:'glb',TM);shadowDirty=true;L.style.display='none';document.getElementById('loadB').style.width='0';if(window.CFG){CFG.reset();setTimeout(()=>CFG.fitAll(),50);}{const m0=model;const fin=()=>{if(model===m0&&window.__PG)try{window.__PG.pronto(model);}catch(e){console.warn('progetti',e);}};setTimeout(()=>{try{STK.buildIndex(model,()=>{const go=()=>{if(model===m0){try{separaRuote();}catch(e){console.warn('ruote',e);}}fin();};window.requestIdleCallback?requestIdleCallback(go,{timeout:900}):setTimeout(go,60);});}catch(e){fin();}},120);}
 }
 
 function smoothModel(root){const ang=35*Math.PI/180;root.traverse(o=>{if(!o.isMesh||o.userData.smoothed||o.isSkinnedMesh)return;for(let p=o.parent;p;p=p.parent)if(p.userData&&p.userData.smoothed){o.userData.smoothed=1;return;} /* normali già calcolate nel file (pre-elaborazione) */const g=o.geometry;
   if(!g.attributes.normal||g.attributes.position.count>400000)return;try{const ng=toCreasedNormals(g,ang);o.geometry=ng;g.dispose();o.userData.smoothed=1;}catch(e){}});}
 /* ---------------- UI ---------------- */
 const $=id=>document.getElementById(id);
-function showTab(t){document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));}
+function showTab(t){const pv=document.querySelector('#tabs .on'),prev=pv&&pv.dataset.t,O=window.__OF;
+  if(O&&t!==prev){if(t==='edit'&&O.tool()==='sel')O.setTool('translate',true);else if(prev==='edit'&&O.tool()!=='sel')O.setTool('sel',true);}
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));}
 $('tabs').onclick=e=>{if(e.target.dataset.t)showTab(e.target.dataset.t);};
 $('market').innerHTML=marketHTML();renderPdfs();
 {const sp=$('splash');let seen=false;try{seen=sessionStorage.getItem('cg_seen')==='1'}catch(e){}if(!seen)sp.classList.add('on');
@@ -722,7 +755,7 @@ function decalSize(tex){const asp=tex.image.width/tex.image.height*(+$('gA').val
 function placeDecal(h){const tex=new THREE.CanvasTexture(gfxCanvas());tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=MAXANI;const size=decalSize(tex);
   const n=h.face.normal.clone().transformDirection(h.object.matrixWorld);const helper=new THREE.Object3D();helper.position.copy(h.point);helper.lookAt(h.point.clone().add(n));helper.rotateZ(+$('gR').value);
   const d=new THREE.Mesh(new DecalGeometry(h.object,h.point,helper.rotation,size),decalMat(tex));d.userData.decal=true;d.renderOrder=2;scene.add(d);decals.push(d);
-  lastDecal={h,n,size,tex,meshes:[d]};placing=false;$('decalHint').style.display='none';$('bPlace').classList.remove('on');invalidate();}
+  lastDecal={h,n,size,tex,meshes:[d]};placing=false;window.__njdModifica&&window.__njdModifica();$('decalHint').style.display='none';$('bPlace').classList.remove('on');invalidate();}
 function refreshDecal(){if(!lastDecal)return;const tex=new THREE.CanvasTexture(gfxCanvas());tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=MAXANI;const size=decalSize(tex);
   const h=lastDecal.h;const helper=new THREE.Object3D();helper.position.copy(h.point);helper.lookAt(h.point.clone().add(lastDecal.n));helper.rotateZ(+$('gR').value);
   for(const d of lastDecal.meshes){d.geometry.dispose();d.geometry=new DecalGeometry(h.object,h.point,helper.rotation,size);d.material.map&&d.material.map.dispose();d.material.dispose();d.material=decalMat(tex);}
@@ -819,14 +852,30 @@ const toastEl=$('toast');let toastT=null;function toast(t){toastEl.textContent=t
 const OF=initOfficina({loadPart,scene,camera,renderer,controls,invalidate,$,nice,toast,finishParams,FIN,getModel:()=>model,getParts:()=>parts,
   asseRuota:k=>window.CFG&&window.CFG.asseRuota?window.CFG.asseRuota(k):null,onSwap:(a,b)=>{if(window.CFG&&window.CFG.swapped)window.CFG.swapped(a,b);},
   registerMesh:(m)=>{for(const p of parts.values())if(p.cur===m.material||p.orig===m.material){p.meshes.push([m,0]);return;}},
-  catOfMesh:(o)=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';}});
+  catOfMesh:(o)=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';},
+  cfgSel:()=>window.CFG&&window.CFG.sel,cfgSelect:s=>window.CFG&&window.CFG.select(s),cfgSelectAcc:o=>window.CFG&&window.CFG.selectAcc(o),cfgSelectComp:()=>window.CFG&&window.CFG.selectComp(),
+  cfgSelectAt:h=>{if(!window.CFG)return;const n=matName(h);if(n){selected=n;syncSel();}window.CFG.selectAt(h,n);},
+  modificato:()=>window.__njdModifica&&window.__njdModifica(),diario:(...a)=>window.__njdDiario&&window.__njdDiario(...a)});
+window.__OF=OF;
 OF.tc.addEventListener('dragging-changed',e=>{if(e.value)setDPR(Math.min(Q().move,fullDPR));else setDPR(fullDPR);});
 const mainEl=document.querySelector('main');
-const CFG=window.CFG=initConfig({scene,camera,controls,composer,renderer,invalidate,$,toast,nice,finishParams,FIN,SW,parts:()=>parts,hidden,setPartMat,repaint,bodyParts,getModel:()=>model,cur:()=>cur,tc:OF.tc,tcSwap:o=>OF.swapSel(o),
+const CFG=window.CFG=initConfig({modificato:()=>window.__njdModifica&&window.__njdModifica(),loadPart,scene,camera,controls,composer,renderer,invalidate,$,toast,nice,finishParams,FIN,SW,parts:()=>parts,hidden,setPartMat,repaint,bodyParts,getModel:()=>model,cur:()=>cur,tc:OF.tc,tcSwap:o=>OF.swapSel(o),
   registerMesh:(m)=>{for(const p of parts.values())if(p.cur===m.material||p.orig===m.material){p.meshes.push([m,0]);return;}},
   thumbOf:OF.thumbOf,placeReal:it=>OF.placeItem(it),editObj:o=>{showTab('edit');openPanel('edit');OF.edit(o);},flyTo,
-  refreshParts:()=>{syncSel();buildParts();},onSelect:s=>{if(s.kind==='part'){selected=s.name;syncSel();}},
+  refreshParts:()=>{syncSel();buildParts();},onSelect:s=>{if(s&&s.kind==='part'){selected=s.name;syncSel();}OF.adopt(s);},
   openPanel,togglePanel,activeTab:()=>document.querySelector('#tabs .on').dataset.t});
+/* progetti: salvati con un nome dentro il programma, riaperti quando si vuole; salvataggio automatico */
+const PG=window.__PG=initProgetti({scene,camera,controls,renderer,toast,$,invalidate,getModel:()=>model,getParts:()=>parts,cur:()=>cur,hidden,repaint,MODELS,
+  registraMesh:(m)=>{for(const p of parts.values())if(p.cur===m.material||p.orig===m.material){p.meshes.push([m,0]);return;}},
+  loadModel:m=>loadModel(m,'models/'+m.id+'.glb'),loadPart,CFG:()=>CFG,OF:()=>OF,salvaFile:(b,n)=>salvaFile(b,n),renderOra:()=>{try{composer.render();}catch(e){}},
+  aggiorna:()=>{try{buildParts();syncSel();CFG.afterChange();}catch(e){console.warn(e);}},
+  ambiente:()=>({env:envK,exp:+$('exp').value,lrot}),impostaAmbiente:v=>{if(v.exp!==undefined)$('exp').value=v.exp;if(v.lrot!==undefined){lrot=v.lrot;$('lrot').value=v.lrot;placeLights();}if(v.env&&ENVS[v.env])setEnv(v.env);},
+  esportaDecal:(b64,geoDati,imm)=>decals.filter(d=>d.parent).map(d=>({g:geoDati(d.geometry),t:imm(d.material.map),r:d.material.roughness,cc:d.material.clearcoat})),
+  importaDecal:(L,daB64,daGeo)=>{for(const x of L){const t=x.t?new THREE.TextureLoader().load(x.t,()=>invalidate()):null;if(t){t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=MAXANI;}
+    const mt=new THREE.MeshPhysicalMaterial({map:t,transparent:true,depthTest:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,roughness:x.r??.18,clearcoat:x.cc??1,clearcoatRoughness:.02});
+    const d=new THREE.Mesh(daGeo(x.g),mt);d.userData.decal=true;d.renderOrder=2;scene.add(d);decals.push(d);}}});
+impostaDiario((...a)=>PG.diario(...a));window.__njdModifica=()=>PG.modificato();window.__njdDiario=(...a)=>PG.diario(...a);
+$('bProg').onclick=()=>PG.apriFinestra();
 /* effetti fotografici solo su PC con scheda video adeguata: occlusione ambientale (GTAO a metà risoluzione: contatti, pieghe, ombre tra i pezzi)
    e bagliore delle luci e delle cromature (bloom sull'immagine HDR, prima della mappatura dei toni). Durante la rotazione l'occlusione si sospende */
 const FX={ao:null,bloom:null};

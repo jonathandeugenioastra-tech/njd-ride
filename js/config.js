@@ -10,6 +10,7 @@ import { EXH, EXH_CUT } from './exhdata.js';
 import { SPEC } from './motodb.js';
 import * as GDB from './gommedb.js';
 import { STORE, riepilogoTesto } from './compat.js';
+import * as AG from './aggancio.js';
 
 /* ---------- postazioni (slot) dei pezzi sostituibili ---------- */
 export const SLOTS = [
@@ -110,6 +111,8 @@ function islandBoxes(mesh) {
     for (let k = 0; k < 3; k++) { v.fromBufferAttribute(p, t * 3 + k).applyMatrix4(mesh.matrixWorld); b.box.expandByPoint(v); } }
   return [...M.values()];
 }
+/* diario delle divisioni: i progetti salvati le ripetono uguali alla riapertura (stessi pezzi, stessi nomi) */
+let DIARIO = null; export function impostaDiario(f) { DIARIO = f; }
 /* separa le isole scelte in mesh autonome (stesso materiale), così si possono nascondere o spostare */
 function splitIslands(mesh, ids, registerMesh) {
   if (Array.isArray(mesh.material)) return [];
@@ -119,7 +122,7 @@ function splitIslands(mesh, ids, registerMesh) {
   for (const [id, keep] of groups) { const ng = subGeo(g, keep); const m = new THREE.Mesh(ng, mesh.material); m.castShadow = m.receiveShadow = true; m.position.copy(mesh.position); m.quaternion.copy(mesh.quaternion); m.scale.copy(mesh.scale);
     m.userData.piece = true; m.userData.islId = id; m.name = (mesh.material.name || 'pezzo'); mesh.parent.add(m); registerMesh && registerMesh(m); out.push(m); }
   if (rest.length) { mesh.geometry = subGeo(g, rest); } else { mesh.visible = false; mesh.userData.vuoto = true; } // guscio vuoto: tutte le isole sono diventate pezzi a sé, non va più mostrato
-  mesh.userData.isl = null; g.dispose(); for (let a = mesh; a; a = a.parent) if (a.userData.__idx) a.userData.__idx = null; return out;
+  mesh.userData.isl = null; g.dispose(); for (let a = mesh; a; a = a.parent) if (a.userData.__idx) a.userData.__idx = null; if (DIARIO) try { DIARIO('split', mesh, [...ids], out); } catch (e) { console.warn('diario', e); } return out;
 }
 
 /* ---------- asse ruota in 3D. 1) impronta a terra e raggio; 2) orientamento: col piano giusto i punti più esterni del battistrada stanno su un cerchio
@@ -245,9 +248,9 @@ export function initConfig(ctx) {
 
   let sel = null; const H = [], R = []; const config = []; let busy = false;
   /* ---------- cronologia unica: annulla / ripristina ---------- */
-  function record(label, undo, redo) { H.push({ label, undo, redo }); if (H.length > 300) H.shift(); R.length = 0; syncQ(); }
-  function doUndo() { const a = H.pop(); if (!a) { toast('Niente da annullare'); return; } busy = true; try { a.undo(); } finally { busy = false; } R.push(a); toast('Annullato: ' + a.label); afterChange(); }
-  function doRedo() { const a = R.pop(); if (!a) { toast('Niente da ripristinare'); return; } busy = true; try { a.redo(); } finally { busy = false; } H.push(a); toast('Ripristinato: ' + a.label); afterChange(); }
+  function record(label, undo, redo) { H.push({ label, undo, redo }); if (H.length > 300) H.shift(); R.length = 0; syncQ(); ctx.modificato && ctx.modificato(); }
+  function doUndo() { const a = H.pop(); if (!a) { toast('Niente da annullare'); return; } busy = true; try { a.undo(); } finally { busy = false; } R.push(a); toast('Annullato: ' + a.label); afterChange(); ctx.modificato && ctx.modificato(); }
+  function doRedo() { const a = R.pop(); if (!a) { toast('Niente da ripristinare'); return; } busy = true; try { a.redo(); } finally { busy = false; } H.push(a); toast('Ripristinato: ' + a.label); afterChange(); ctx.modificato && ctx.modificato(); }
   function afterChange() { ctx.refreshParts && ctx.refreshParts(); syncStore(); renderList(); renderPanel(); syncQ(); invalidate(); }
   function syncStore() { try { STORE.sync(config, ctx.cur && ctx.cur() ? ctx.cur().id : null); } catch (e) { console.warn('compatibilità', e); } }
 
@@ -257,7 +260,7 @@ export function initConfig(ctx) {
   function nameOf(s) { if (!s) return ''; if (s.kind === 'comp') return 'Componente intero · ' + s.objs.length + (s.objs.length === 1 ? ' pezzo' : ' pezzi'); if (s.kind === 'piece') return s.obj.userData.zone ? s.obj.name : 'Pezzo selezionato'; if (s.kind === 'part') return ctx.nice(s.name); return s.obj.userData.accName || s.obj.name || 'Accessorio'; }
   function catOf(s) { if (!s) return ''; if (s.kind === 'comp') { const p = s.part && parts().get(s.part); return (p ? p.cat + ' · ' : '') + 'il pezzo toccato e quelli montati con lui (tocca «Gruppo» per tornare al pezzo singolo)'; }
     if (s.kind === 'piece') { const p = s.part && parts().get(s.part); return (p ? p.cat + ' · ' : '') + 'solo questo pezzo (tocca «Gruppo» per il componente intero: il pezzo e quelli montati con lui)'; } if (s.kind === 'part') { const p = parts().get(s.name); return p ? p.cat : ''; } const it = s.obj.userData.item; return it ? it.cat : (s.obj.userData.accCat || 'Accessorio'); }
-  function select(s) { sel = s; wheelOfSel(s); outline.selectedObjects = meshesOf(s); renderPanel(); syncQ(); invalidate(); if (s && ctx.onSelect) ctx.onSelect(s); }
+  function select(s) { sel = s; wheelOfSel(s); outline.selectedObjects = meshesOf(s); renderPanel(); syncQ(); invalidate(); if (ctx.onSelect) ctx.onSelect(s); }
   // toccando un pezzo di una ruota, il pannello Ruote lavora su quella ruota e su quel componente (mai sull'altra)
   function wheelOfSel(s) { if (!s) return; let o = null, nm = '';
     if (s.kind === 'part') { const p = parts().get(s.name); o = p && p.meshes[0] && p.meshes[0][0]; nm = s.name; } else if (s.kind === 'piece') { o = s.obj; nm = s.obj.material && s.obj.material.name || ''; }
@@ -322,9 +325,29 @@ export function initConfig(ctx) {
   function paintAcc(o, color, finish) { const before = new Map(), after = new Map();
     // gomme, vetri, lenti, manopole, pedane e sella dei ricambi restano come sono
     o.traverse(c => { if (c.isMesh && !Array.isArray(c.material) && !/Lente|LED|Gomma|Vetro|Parabola|Fascia|Policarbonato|Plexi|Pneumatico|Battistrada/i.test(c.material.name || '') && !/^(gomma|vetro|fanale|frecce|manopole|pedane|sella)$/.test((c.material.userData && c.material.userData.ruolo) || '')) { before.set(c, c.material);
-      const m0 = c.material, m = new THREE.MeshPhysicalMaterial({ name: (m0.name || 'pezzo'), color: new THREE.Color(color), normalMap: m0.normalMap || null, side: m0.side }); Object.assign(m, ctx.finishParams(finish)); c.material = m; if (m.normalMap && window.__uvCubo) window.__uvCubo(c); after.set(c, m); } });
+      const m0 = c.material, m = new THREE.MeshPhysicalMaterial({ name: (m0.name || 'pezzo'), color: new THREE.Color(color), normalMap: m0.normalMap || null, side: m0.side }); Object.assign(m, ctx.finishParams(finish)); m.userData.mod = 1; m.userData.fin = finish; c.material = m; if (m.normalMap && window.__uvCubo) window.__uvCubo(c); after.set(c, m); } });
     record('colore ' + nameOf({ kind: 'acc', obj: o }), () => before.forEach((m, c) => c.material = m), () => after.forEach((m, c) => c.material = m)); afterChange(); }
 
+
+  /* ---------- progetti: la configurazione (voci, pezzi di serie nascosti o spostati, kit) si salva e si ricostruisce ---------- */
+  function esporta(idxAcc, keyDi) { const pul = it => { const o = {}; for (const [k, v] of Object.entries(it || {})) { if (k === 's' || k.startsWith('__')) continue; if (k === 'o' && v && typeof v === 'object') { const q = {}; for (const [a, b] of Object.entries(v)) if (!a.startsWith('__') && (b === null || typeof b !== 'object' || Array.isArray(b))) q[a] = b; o.o = q; } else o[k] = v; } return o; };
+    return config.map(e => ({ k: e.k, n: e.n, cat: e.cat, slot: e.slot, posto: e.posto || null, lato: e.lato || null, real: e.real || null, it: pul(e.it), obj: e.obj ? idxAcc(e.obj) : -1, extra: (e.extra || []).map(idxAcc),
+      stock: (e.stock || []).map(s0 => ({ t: s0.tipo || 'nascondi', l: s0.label || '', ms: (s0.ms || []).map(keyDi).filter(Boolean), d: s0.d ? s0.d.toArray() : undefined })), kit: e.kit || [], kitOf: e.kitOf ? config.indexOf(e.kitOf) : -1,
+      wh: e.wh || null, side: e.side || null, anchor: e.anchor ? [e.anchor.min.toArray(), e.anchor.max.toArray()] : null })); }
+  function importa(L, accDi, oggDi) { const made = [];
+    for (const v of L) { const stock = (v.stock || []).map(s0 => { const ms = (s0.ms || []).map(oggDi).filter(Boolean);
+        if (s0.t === 'sposta') { const d = new THREE.Vector3(...(s0.d || [0, 0, 0])), st = ms.map(o => [o, o.position.clone().sub(d)]); return { tipo: 'sposta', ms, d, label: s0.l, apply: () => st.forEach(([o, p]) => o.position.copy(p).add(d)), restore: () => st.forEach(([o, p]) => o.position.copy(p)) }; }
+        return { tipo: s0.t === 'ruota' ? 'ruota' : 'nascondi', ms, label: s0.l, apply: () => ms.forEach(o => o.visible = false), restore: () => ms.forEach(o => { if (!o.userData.vuoto) o.visible = true; }) }; });
+      const e = { k: v.k, n: v.n, cat: v.cat, slot: v.slot, posto: v.posto || undefined, lato: v.lato || undefined, real: v.real || undefined, it: v.it, obj: v.obj >= 0 ? accDi(v.obj) : null, extra: (v.extra || []).map(i => accDi(i)).filter(Boolean), stock, kit: v.kit || [],
+        wh: v.wh || null, side: v.side || undefined, anchor: v.anchor ? new THREE.Box3(new THREE.Vector3(...v.anchor[0]), new THREE.Vector3(...v.anchor[1])) : null };
+      if (v.obj >= 0 && !e.obj) { made.push(null); continue; } if (e.obj) { e.obj.userData.item = e.it; if (e.posto) e.obj.userData.posto = e.posto; } made.push(e); }
+    L.forEach((v, i) => { if (made[i] && v.kitOf >= 0 && made[v.kitOf]) made[i].kitOf = made[v.kitOf]; }); made.filter(Boolean).forEach(e => config.push(e)); afterChange(); }
+  /* ricambio PRO ricostruito: la sella su misura si rimisura su quella di serie, lo scarico sulle luci del motore */
+  function ricostruisciPro(id, opts, slot, stockMs) { const o2 = { ...(opts || {}) };
+    if (id === 'sella_foto' && stockMs && stockMs.length) { const f = seatFit(stockMs); if (f) o2.__fit = f; }
+    if (id === 'scarico' && ctx.cur && ctx.cur() && EXH[ctx.cur().id]) o2.__exh = EXH[ctx.cur().id];
+    const o = buildPro(id, o2); o.userData.acc = true; if (slot) o.userData.slot = slot; o.traverse(c => { if (c.isMesh) { c.userData.accPart = o; c.castShadow = c.receiveShadow = true; } });
+    o.addEventListener && o.addEventListener('ready', () => { o.traverse(c => { if (c.isMesh) c.userData.accPart = o; }); invalidate(); }); return o; }
   /* ---------- riepilogo configurazione ---------- */
   function addEntry(e) { config.push(e); }
   function removeEntry(e) { const i = config.indexOf(e); if (i >= 0) config.splice(i, 1); }
@@ -449,8 +472,8 @@ export function initConfig(ctx) {
       if (best && bd < .02) { if (!role.has(best.mesh)) role.set(best.mesh, new Set()); role.get(best.mesh).add(best.id); } }
     const pcs = []; for (const [m, ids] of role) { if (m.userData.zone || m.userData.piece && ids.size === 1) { pcs.push(m); continue; } const all = new Set(islands(m)); if ([...all].every(i => ids.has(i))) { pcs.push(m); continue; } pcs.push(...splitIslands(m, [...ids], ctx.registerMesh)); }
     M.userData.__idx = null; geoCache = null; return pcs.filter(o => o.visible); }
-  function hideMeshes(ms, label) { const st = ms.map(o => [o, o.visible]); return { label, apply: () => ms.forEach(o => o.visible = false), restore: () => st.forEach(([o, v]) => o.visible = v) }; }
-  function moveMeshes(ms, d) { const st = ms.map(o => [o, o.position.clone()]); return { label: 'comandi spostati', apply: () => st.forEach(([o, p]) => o.position.copy(p).add(d)), restore: () => st.forEach(([o, p]) => o.position.copy(p)) }; }
+  function hideMeshes(ms, label) { const st = ms.map(o => [o, o.visible]); return { tipo: 'nascondi', ms, label, apply: () => ms.forEach(o => o.visible = false), restore: () => st.forEach(([o, v]) => o.visible = v) }; }
+  function moveMeshes(ms, d) { const st = ms.map(o => [o, o.position.clone()]); return { tipo: 'sposta', ms, d, label: 'comandi spostati', apply: () => st.forEach(([o, p]) => o.position.copy(p).add(d)), restore: () => st.forEach(([o, p]) => o.position.copy(p)) }; }
   function worldToLocalDelta(o, d) { const par = o.parent; if (!par) return d.clone(); const a = par.worldToLocal(new THREE.Vector3(0, 0, 0)), b = par.worldToLocal(d.clone()); return b.sub(a); }
 
   /* ---------- montaggio automatico al posto del pezzo di serie ---------- */
@@ -545,10 +568,79 @@ export function initConfig(ctx) {
         for (const [m, ids] of per) out[pos].push(...splitIslands(m, ids, ctx.registerMesh)); } }
     if (out.ant.length || out.post.length) { M.userData.__idx = null; geoCache = null; } return out; }
   // nasconde i pezzi di serie e al ripristino li rimette visibili anche se li aveva nascosti la ruota sostituita
-  function hideWheel(ms, label) { return { label, apply: () => ms.forEach(o => o.visible = false), restore: () => ms.forEach(o => { if (!o.userData.vuoto) o.visible = true; }) }; }
+  function hideWheel(ms, label) { return { tipo: 'ruota', ms, label, apply: () => ms.forEach(o => o.visible = false), restore: () => ms.forEach(o => { if (!o.userData.vuoto) o.visible = true; }) }; }
+
+  /* ---------- ricambi 3D reali: arrivano col verso giusto e si montano da soli al posto del pezzo di serie
+     (stessa posizione, inclinazione e misura del pezzo che sostituiscono, che si nasconde; si annulla con «Annulla») ---------- */
+  const VERN_R = /^(serbatoio|parafango_ant|parafango_post|fianchetti|carena)$/;
+  function vernMoto() { const ps = [...parts().values()].filter(p => p.cat === 'Carrozzeria e verniciatura' && p.cur && !p.cur.map && p.cur.color); if (!ps.length) return null;
+    const t = ps.find(p => (p.cur.userData && p.cur.userData.ruolo === 'serbatoio') || /serbatoio|tank/i.test(p.name)) || ps[0]; return t.cur; }
+  function costruisciReale(it, g) { const c2 = g.clone(true), vm = vernMoto();
+    c2.traverse(x => { if (!x.isMesh) return; x.castShadow = x.receiveShadow = true; x.material = Array.isArray(x.material) ? x.material.map(m => m.clone()) : x.material.clone();
+      if (vm && !Array.isArray(x.material) && VERN_R.test((x.material.userData && x.material.userData.ruolo) || '')) { const m0 = x.material, m = vm.clone(); m.name = m0.name; m.userData = { ...m0.userData, colore: '#' + vm.color.getHexString() }; x.material = m; }
+      if (!Array.isArray(x.material) && x.material.normalMap && !x.geometry.attributes.uv && window.__uvCubo) window.__uvCubo(x); });
+    const o = AG.orienta(it.real, c2); o.name = it.n; o.userData.type = it.t; o.userData.real = it.real; return o; }
+  // isole di serie → pezzi a sé (una divisione per mesh), da nascondere
+  function pezziDa(L) { const role = new Map(); L.forEach(I => { if (!role.has(I.mesh)) role.set(I.mesh, new Set()); role.get(I.mesh).add(I.id); }); const pcs = [];
+    for (const [m, ids] of role) { if (m.userData.zone || (m.userData.piece && ids.size === 1)) { pcs.push(m); continue; } const all = new Set(islands(m)); if ([...all].every(i => ids.has(i))) { pcs.push(m); continue; } pcs.push(...splitIslands(m, [...ids], ctx.registerMesh)); }
+    const M = ctx.getModel(); if (M) M.userData.__idx = null; geoCache = null; return pcs; }
+  const SLOT_POSTO = { serbatoio: 'serbatoio', sella: 'sella', scarico: 'scarico', silenziatore: 'scarico', ruota: 'ruote', cerchio: 'ruote', gomma: 'ruote', disco: 'ruote', faro: 'faro', mascherina: 'faro', carena: 'carena', motore: 'motore',
+    ammortizzatore: 'sospensioni', manubrio: 'manubrio', specchietto: 'specchietti', parafango_ant: 'parafanghi', parafango_post: 'parafanghi', forcella: 'forcella' };
+  const ctxAg = () => ({ getModel: ctx.getModel, getParts: parts, asseRuota, wheelRoles, findBars });
+  async function montaReale(it, opt = {}) {
+    if (!ctx.getModel()) return null; let g; try { toast('Carico «' + it.n + '»…'); g = await ctx.loadPart(it.real); } catch (e) { toast('Impossibile caricare il ricambio'); return null; }
+    const meta = AG.RICAMBI[it.real] || {}; if (meta.coppia) return montaCoppia(it, g, opt);
+    const r = montaUno(it, g, { ...opt, posto: opt.posto || meta.posto || 'esposizione' }); return r ? r.entry : null; }
+  function montaUno(it, g, opt, gruppo) {
+    const M = ctx.getModel(); if (!M) return null; const posto = opt.posto, slotId = SLOT_POSTO[posto] || ('r_' + posto), dove = AG.NOMI_POSTO[posto] || posto;
+    const o = costruisciReale(it, g); o.updateMatrixWorld(true); const meta = AG.RICAMBI[it.real] || {};
+    const k = ['ruota', 'cerchio', 'gomma', 'disco'].includes(posto) ? (opt.pos || meta.pos || whPos) : null;
+    const lato = posto === 'specchietto' ? (Math.sign((o.userData.centro0 || [0, 0, 1])[2]) || 1) : null;
+    // un accessorio già montato nello stesso posto si sostituisce (i pezzi di serie restano nascosti)
+    const stesso = e => e.obj && !e.kitOf && e.slot === slotId && (slotId !== 'parafanghi' || (e.posto ? e.posto === posto : (e.it.o || {}).posizione === (posto === 'parafango_ant' ? 'anteriore' : 'posteriore')))
+      && (slotId !== 'ruote' || !e.wh || e.wh.pos === k) && (lato === null || !e.lato || e.lato === lato);
+    const prev = config.filter(stesso), pst = prev.flatMap(e => e.stock || []);
+    pst.forEach(s0 => s0.restore()); M.userData.__idx = null; geoCache = null; // il pezzo di serie si misura visibile
+    let fit = null; try { fit = AG.adatta(it.real, o, ctxAg(), { posto, pos: k }); } catch (e) { console.warn('adattamento', e); }
+    pst.forEach(s0 => s0.apply()); M.userData.__idx = null; geoCache = null;
+    if (!fit) { if (!gruppo) { toast('Non trovo il posto di questo ricambio sulla moto: toccala dove montarlo'); ctx.placeReal && ctx.placeReal(it); } return null; }
+    o.applyMatrix4(fit.mat); if (fit.specchia) o.scale[fit.specchia] *= -1; o.updateMatrixWorld(true);
+    const slot = slotById(slotId) || { id: slotId, n: dove }; tag(o, it, slot); o.userData.posto = posto; o.userData.accName = it.n.replace(/ \(modello reale\)$/, ''); const objs = [o];
+    (fit.copie || []).forEach(c => { const o2 = costruisciReale(it, g); o2.quaternion.copy(o.quaternion); o2.scale.copy(o.scale); o2.position.copy(c); tag(o2, it, slot); o2.userData.posto = posto; o2.userData.accName = o.userData.accName + ' (altro lato)'; objs.push(o2); });
+    const stock = [], pcs = fit.nascondi && fit.nascondi.length ? pezziDa(fit.nascondi) : []; if (pcs.length) stock.push(hideMeshes(pcs, dove + ' di serie'));
+    if (fit.nascondiMesh && fit.nascondiMesh.length) stock.push(hideWheel(fit.nascondiMesh, dove + ' di serie'));
+    const prevObjs = prev.flatMap(e => [e.obj, ...(e.extra || [])]), prevPar = prevObjs.map(x => x.parent);
+    const entry = { k: it.k, n: o.userData.accName, cat: it.cat, slot: slotId, posto, lato, it, obj: objs[0], extra: objs.slice(1), stock: prev.length ? pst.concat(stock) : stock, kit: [], real: it.real,
+      wh: k ? { pos: k, parte: posto === 'gomma' ? 'gomma' : posto === 'cerchio' ? 'cerchio' : posto === 'disco' ? 'disco' : 'completa' } : null };
+    const tcTo = (from, to) => { if (ctx.tc && ctx.tc.object && from.includes(ctx.tc.object) && ctx.tcSwap) ctx.tcSwap(to || null); };
+    const apply = () => { prevObjs.forEach(x => x.parent && x.parent.remove(x)); prev.forEach(removeEntry); objs.forEach(x => scene.add(x)); entry.stock.forEach(s0 => s0.apply()); addEntry(entry); tcTo(prevObjs, objs[0]); };
+    const undo = () => { objs.forEach(x => x.parent && x.parent.remove(x)); stock.forEach(s0 => s0.restore()); removeEntry(entry); prevObjs.forEach((x, i) => (prevPar[i] || scene).add(x)); prev.forEach(addEntry); tcTo(objs, prevObjs[0]); };
+    apply(); objs.forEach(x => ctx.addedObj && ctx.addedObj(x));
+    if (!gruppo) { record('monta ' + entry.n, undo, apply); selectAcc(objs[0]); focus(objs); afterChange();
+      toast((posto === 'esposizione' ? 'Messo accanto alla moto: ' : (pcs.length || (fit.nascondiMesh || []).length) ? 'Montato al posto del ' + dove + ' di serie: ' : 'Montato (' + dove + '): ') + entry.n + (fit.nota ? ' — ' + fit.nota : '') + ' · rifinisci con Sposta e i punti di aggancio'); }
+    return { entry, undo, apply, objs }; }
+  /* set di due parafanghi: l'isola più piccola è l'anteriore, la più grande il posteriore; ognuno va al suo posto */
+  function dividiIsole(g) { const sc = g.clone(true); sc.updateMatrixWorld(true); const out = [];
+    sc.traverse(m => { if (!m.isMesh || Array.isArray(m.material)) return; const isl = islands(m), cnt = new Map(); isl.forEach(i => cnt.set(i, (cnt.get(i) || 0) + 1)); const big = [...cnt.entries()].filter(([, n]) => n > isl.length * .05).map(([i]) => i); if (!big.length) return;
+      const p = m.geometry.attributes.position, cen = new Map(); for (let t = 0; t < isl.length; t++) { let c = cen.get(isl[t]); if (!c) cen.set(isl[t], c = [0, 0, 0, 0]); for (let k = 0; k < 3; k++) { c[0] += p.getX(t * 3 + k); c[1] += p.getY(t * 3 + k); c[2] += p.getZ(t * 3 + k); } c[3] += 3; }
+      const owner = new Map(); for (const [i, c] of cen) { if (big.includes(i)) { owner.set(i, i); continue; } let b = big[0], bd = 1e9; for (const j of big) { const d = cen.get(j), dd = (c[0] / c[3] - d[0] / d[3]) ** 2 + (c[1] / c[3] - d[1] / d[3]) ** 2 + (c[2] / c[3] - d[2] / d[3]) ** 2; if (dd < bd) { bd = dd; b = j; } } owner.set(i, b); }
+      for (const j of big) { const tris = []; for (let t = 0; t < isl.length; t++) if (owner.get(isl[t]) === j) tris.push(t); const ng = subGeo(m.geometry, tris); ng.applyMatrix4(m.matrixWorld); ng.computeBoundingBox();
+        const G = new THREE.Group(); G.add(new THREE.Mesh(ng, m.material)); G.userData.vol = (b => (b.max.x - b.min.x) * (b.max.y - b.min.y) * (b.max.z - b.min.z))(ng.boundingBox); out.push(G); } });
+    return out.sort((a, b) => a.userData.vol - b.userData.vol); }
+  function montaCoppia(it, g, opt) { const pz = dividiIsole(g); if (pz.length < 2) { const r = montaUno(it, g, { ...opt, posto: 'esposizione' }); return r ? r.entry : null; }
+    const R = [montaUno({ ...it, n: it.n.replace(/ \(modello reale\)$/, '') + ' — anteriore' }, pz[0], { ...opt, posto: 'parafango_ant' }, true), montaUno({ ...it, n: it.n.replace(/ \(modello reale\)$/, '') + ' — posteriore' }, pz[pz.length - 1], { ...opt, posto: 'parafango_post' }, true)].filter(Boolean);
+    if (!R.length) return null; record('monta ' + it.n, () => R.slice().reverse().forEach(r => r.undo()), () => R.forEach(r => r.apply())); selectAcc(R[0].objs[0]); focus(R.flatMap(r => r.objs)); afterChange();
+    toast('Montati al posto dei parafanghi di serie: anteriore e posteriore · rifinisci con Sposta e i punti di aggancio'); return R[0].entry; }
+  /* «Rimetti al posto giusto»: ricalcola posizione, inclinazione e misura di un ricambio reale già montato */
+  function riaggancia(o) { const e = config.find(x => x.obj === o || (x.extra || []).includes(o)); if (!e || !e.real) return false; const meta = AG.RICAMBI[e.real] || {}; if (!e.posto || e.posto === 'esposizione') return false;
+    const st = e.stock || []; st.forEach(s0 => s0.restore()); const M = ctx.getModel(); M.userData.__idx = null; geoCache = null; const t = e.obj, p0 = t.position.clone(), q0 = t.quaternion.clone(), s0v = t.scale.clone();
+    t.position.set(0, 0, 0); t.quaternion.identity(); t.scale.set(1, 1, 1); t.updateMatrixWorld(true); let fit = null; try { fit = AG.adatta(e.real, t, ctxAg(), { posto: e.posto, pos: e.wh && e.wh.pos }); } catch (er) { console.warn(er); }
+    st.forEach(s1 => s1.apply()); M.userData.__idx = null; geoCache = null;
+    if (!fit) { t.position.copy(p0); t.quaternion.copy(q0); t.scale.copy(s0v); return false; } t.applyMatrix4(fit.mat); if (fit.specchia) t.scale[fit.specchia] *= -1; t.updateMatrixWorld(true);
+    const p1 = t.position.clone(), q1 = t.quaternion.clone(), s1v = t.scale.clone(); record('rimetti al posto ' + e.n, () => { t.position.copy(p0); t.quaternion.copy(q0); t.scale.copy(s0v); }, () => { t.position.copy(p1); t.quaternion.copy(q1); t.scale.copy(s1v); }); invalidate(); return true; }
 
   async function mount(it, opt = {}) {
-    if (it.real) { toast('Ricambio 3D reale: clicca sulla moto dove montarlo'); ctx.placeReal && ctx.placeReal(it); return; }
+    if (it.real) return montaReale(it, opt);
     const slot = opt.slot ? slotById(opt.slot) : slotOfItem(it), g = bikeGeo(); if (!g) return;
     const objs = [], stock = []; let note = '', det = [], anchor = null, anchorSide = 1, seatFitUsed = null;
     // sostituzione di un accessorio già montato nello stesso slot
@@ -805,7 +897,8 @@ export function initConfig(ctx) {
   renderList(); renderPanel(); syncQ();
   const toRm = [];
   return { select, selectAt, selectPart, selectAcc, get sel() { return sel; }, paintPart, paintMany, hidePart, resetPart, mount, fitAll, focus, undo: doUndo, redo: doRedo, record, reset() { config.forEach(e => [e.obj, ...(e.extra || [])].forEach(o => o && o.parent && o.parent.remove(o))); scene.traverse(o => { if (o.userData && o.userData.acc && o.parent === scene) toRm.push(o); }); toRm.splice(0).forEach(o => scene.remove(o)); config.length = 0; H.length = 0; R.length = 0; sel = null; slotView = null; geoCache = null; outline.selectedObjects = []; tyRim = null; syncStore(); renderList(); renderPanel(); syncQ(); },
-    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel, wheelRoles, wheelZoneSplit, syncStore, scalaRuote, asseRuota, ricollegaSel,
+    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel, wheelRoles, wheelZoneSplit, syncStore, scalaRuote, asseRuota, ricollegaSel, selectComp, montaReale, riaggancia, costruisciReale, esporta, importa, ricostruisciPro, afterChange,
+    separaIsole: (m, ids) => splitIslands(m, ids, ctx.registerMesh),
     // l'officina ha ricostruito un accessorio (nuove opzioni): la configurazione punta al pezzo nuovo
     swapped(a, b) { let n = 0; for (const e of config) { if (e.obj === a) { e.obj = b; n++; } if (e.extra) { const i = e.extra.indexOf(a); if (i >= 0) { e.extra[i] = b; n++; } } }
       if (sel && sel.obj === a) { sel = { ...sel, obj: b }; outline.selectedObjects = meshesOf(sel); } if (n) afterChange(); } };
