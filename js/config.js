@@ -131,6 +131,120 @@ function splitIslands(mesh, ids, registerMesh) {
   mesh.userData.isl = null; g.dispose(); for (let a = mesh; a; a = a.parent) if (a.userData.__idx) a.userData.__idx = null; return out;
 }
 
+/* ---------- asse ruota in 3D. 1) impronta a terra e raggio; 2) orientamento: col piano giusto i punti più esterni del battistrada stanno su un cerchio
+   per tutto il giro (anche sotto il parafango); 3) cerchio ai minimi quadrati sui settori sotto l'asse e piano medio dal punto di mezzo tra le due spalle
+   del battistrada (vale per corone tonde e piatte). Vale per ruote dritte, sterzate e inclinate. Prova su ruote sintetiche con parafango, forcella,
+   disco, pinza, catena, scarico e cavalletto, moto inclinata fino a 17° e sterzo fino a 26° (ricerca fino a 54°, manubrio a fine corsa): errore massimo 1,5 mm sul centro e 0,5° sull'asse ---------- */
+function eig3min(C) { // autovettore dell'autovalore minimo di una matrice 3x3 simmetrica (Jacobi)
+  const a = C.map(r => r.slice()), V = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (let sw = 0; sw < 50; sw++) { let off = Math.abs(a[0][1]) + Math.abs(a[0][2]) + Math.abs(a[1][2]); if (off < 1e-15) break;
+    for (const [p, q] of [[0, 1], [0, 2], [1, 2]]) { if (Math.abs(a[p][q]) < 1e-18) continue; const th = (a[q][q] - a[p][p]) / (2 * a[p][q]), t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < 3; k++) { const akp = a[k][p], akq = a[k][q]; a[k][p] = c * akp - s * akq; a[k][q] = s * akp + c * akq; }
+      for (let k = 0; k < 3; k++) { const apk = a[p][k], aqk = a[q][k]; a[p][k] = c * apk - s * aqk; a[q][k] = s * apk + c * aqk; }
+      for (let k = 0; k < 3; k++) { const vkp = V[k][p], vkq = V[k][q]; V[k][p] = c * vkp - s * vkq; V[k][q] = s * vkp + c * vkq; } } }
+  let m = 0; for (let i = 1; i < 3; i++) if (a[i][i] < a[m][m]) m = i; return [V[0][m], V[1][m], V[2][m]];
+}
+function solve3(A, b) { const d = m => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const D = d(A); if (!isFinite(D) || Math.abs(D) < 1e-18) return null; return [0, 1, 2].map(j => d(A.map((r, i) => r.map((x, c) => c === j ? b[i] : x))) / D); }
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], nrm = a => { const l = Math.hypot(...a); return a.map(x => x / l); };
+/* P: Float array x,y,z (punti della metà della moto verso quella ruota), ant: true per l'anteriore. Restituisce {c,n,R,Wt,ok,D} */
+function fitRuota(P, ant, piega) { // piega: inclinazione della moto (gradi) misurata sulla ruota posteriore, se già nota
+  const D = {}; if (P.length < 900) return { ok: false, D: { why: 'pochi punti' } };
+  let ym = Infinity; for (let i = 1; i < P.length; i += 3) if (P[i] < ym) ym = P[i];
+  let xe = ant ? -Infinity : Infinity; for (let i = 0; i < P.length; i += 3) if (P[i + 1] < ym + .012) xe = ant ? Math.max(xe, P[i]) : Math.min(xe, P[i]);
+  // impronta: punti a terra vicini all'estremità della moto (cavalletto e scarichi esclusi); x e z mediani
+  const xs = [], zs0 = []; for (let i = 0; i < P.length; i += 3) if (P[i + 1] < ym + .012 && Math.abs(P[i] - xe) < .3) { xs.push(P[i]); zs0.push(P[i + 2]); }
+  if (!xs.length) return { ok: false, D: { why: 'appoggio' } }; xs.sort((a, b) => a - b); zs0.sort((a, b) => a - b); const sx = xs[xs.length >> 1], sz = zs0[zs0.length >> 1];
+  // raggio iniziale: cerchio appoggiato a terra in quel punto coperto in più settori (piano qualsiasi attorno alla verticale)
+  // (solo i punti vicini all'impronta, ridotti: il voto è la parte più pesante)
+  const V = []; { let n = 0; for (let i = 0; i < P.length; i += 3) { const dx = P[i] - sx, dz = P[i + 2] - sz; if (Math.abs(dz) < .3 && Math.abs(dx) < .48 && P[i + 1] < ym + .92) n++; } const st = Math.max(1, Math.ceil(n / 16000)); let j = 0;
+    for (let i = 0; i < P.length; i += 3) { const dx = P[i] - sx, dz = P[i + 2] - sz; if (Math.abs(dz) < .3 && Math.abs(dx) < .48 && P[i + 1] < ym + .92 && (j++ % st) === 0) V.push(dx, P[i + 1] - ym, dz); } }
+  // moto inclinata (cavalletto): il centro non è sulla verticale dell'impronta ma spostato di lato; si cerca anche questo spostamento
+  // (il battistrada è la superficie più esterna: nella metà bassa non deve restare materiale fuori dal cerchio, altrimenti è il cerchione o il tallone)
+  let R0 = .3, bs = -1, E0 = 0; for (let e = -.16; e <= .1601; e += .02) for (let R = .2; R <= .45; R += .004) { const bins = new Uint8Array(72), out = new Uint8Array(72); let n = 0; const lo = (R - .007) ** 2, hi = (R + .007) ** 2, ho = (R + .016) ** 2, h2 = (R * 1.3) ** 2, zl = .5 * R, cy = Math.sqrt(Math.max(0, R * R - e * e));
+    for (let i = 0; i < V.length; i += 3) { const dx = V[i], dz = V[i + 2] - e; if (Math.abs(dz) > zl) continue; const hh = dx * dx + dz * dz; if (hh > h2) continue; const dy = V[i + 1] - cy, d2 = hh + dy * dy; if (d2 < lo) continue;
+      const k = Math.floor((Math.atan2(dy, dx >= 0 ? Math.sqrt(hh) : -Math.sqrt(hh)) + Math.PI) / (2 * Math.PI) * 71.999); if (d2 <= hi) { if (hh <= (R * 1.05) ** 2) { bins[k] = 1; n++; } } else if (d2 > ho && dy < -.2 * R) out[k] = 1; }
+    let cv = 0, fo = 0; for (let b = 0; b < 72; b++) { cv += bins[b]; fo += out[b]; } const sc = (cv - 2 * fo) * 1e6 + n - Math.abs(e) * 1e3; if (sc > bs) { bs = sc; R0 = R; E0 = e; } }
+  D.E0 = +E0.toFixed(3); D.sx = +sx.toFixed(3); D.sz = +sz.toFixed(3); D.ym = +ym.toFixed(4); D.nV = V.length / 3;
+  D.R0 = +R0.toFixed(3); D.cov0 = Math.round(bs / 1e6);
+  // solo la parte bassa della ruota (sotto l'asse): lì ci sono pneumatico e cerchio, non parafango, forcella o forcellone
+  const Q = [], QF = []; { const cy = ym + R0; for (let i = 0; i < P.length; i += 3) { const dx = P[i] - sx, dy = P[i + 1] - cy, dz = P[i + 2] - sz; if (dx * dx + dy * dy + dz * dz < (1.5 * R0) ** 2) { QF.push(P[i], P[i + 1], P[i + 2]); if (dy < .25 * R0) Q.push(P[i], P[i + 1], P[i + 2]); } } }
+  // campioni ridotti per la ricerca dell'orientamento (velocità sul telefono)
+  const sub = (A, max) => { const n = A.length / 3; if (n <= max) return A; const st = n / max, o = []; for (let j = 0; j < max; j++) { const i = Math.floor(j * st) * 3; o.push(A[i], A[i + 1], A[i + 2]); } return o; };
+  const Qs = sub(Q, 7000), QFs = sub(QF, 11000);
+  if (Q.length < 900) return { ok: false, D: { ...D, why: 'pochi punti in basso' } };
+  const NB = 120, inArc = k => { const an = (k + .5) / NB * 2 * Math.PI - Math.PI; return an > -Math.PI * .9 && an < -Math.PI * .1; };
+  const vecs = n => { const u = nrm(cross([0, 1, 0], n)); return [u, cross(n, u)]; };
+  // per ogni settore: punto più esterno nel piano e fascia del battistrada (spalle) misurata lungo l'asse
+  function settori(c, n, R, half, X = Q) { const [u, w] = vecs(n), bd = new Float64Array(NB).fill(-1), ba = new Float64Array(NB), bb = new Float64Array(NB), t0 = new Float64Array(NB).fill(1e9), t1 = new Float64Array(NB).fill(-1e9), tn = new Int32Array(NB);
+    for (let i = 0; i < X.length; i += 3) { const q0 = X[i] - c[0], q1 = X[i + 1] - c[1], q2 = X[i + 2] - c[2], t = q0 * n[0] + q1 * n[1] + q2 * n[2]; if (Math.abs(t) > half) continue;
+      const a = q0 * u[0] + q1 * u[1] + q2 * u[2], b = q0 * w[0] + q1 * w[1] + q2 * w[2]; if (b > -.06 * R) continue; const d = Math.hypot(a, b); if (d > R * 1.2) continue;
+      const k = Math.min(NB - 1, Math.floor((Math.atan2(b, a) + Math.PI) / (2 * Math.PI) * NB)); if (d > bd[k]) { bd[k] = d; ba[k] = a; bb[k] = b; }
+      if (d > .92 * R && d < 1.025 * R) { if (t < t0[k]) t0[k] = t; if (t > t1[k]) t1[k] = t; tn[k]++; } }
+    return { u, w, bd, ba, bb, t0, t1, tn }; }
+  let c = [sx, ym + R0, sz], n = [0, 0, 1], R = R0, best;
+  // orientamento di partenza: col piano giusto i punti più esterni del battistrada stanno tutti sullo stesso cerchio (col piano sbagliato formano un'ellisse)
+  // per ogni orientamento provato si cerca il suo cerchio (centro e raggio nel piano), poi si contano i settori che ci stanno sopra
+  function cerchio(c0, nn, R1) { let cc = c0, RR = R1, sc = 0; for (let j = 0; j < 3; j++) { const S = settori(cc, nn, RR, .17, Qs), ds = []; for (let b = 0; b < NB; b++) if (inArc(b) && S.bd[b] > 0) ds.push(S.bd[b]); if (ds.length < NB * .25) return null;
+      ds.sort((a, b) => a - b); const med = ds[ds.length >> 1]; const A = [0, 0, 0, 0, 0, 0, 0, 0]; let m = 0;
+      for (let b = 0; b < NB; b++) { if (!inArc(b) || S.bd[b] < 0 || Math.abs(S.bd[b] - med) > .025 * med) continue; const x = S.ba[b], y = S.bb[b], z = x * x + y * y; m++; A[0] += x; A[1] += y; A[2] += x * x; A[3] += y * y; A[4] += x * y; A[5] += x * z; A[6] += y * z; A[7] += z; }
+      if (m < NB * .12) return null; const s3 = solve3([[A[2], A[4], A[0]], [A[4], A[3], A[1]], [A[0], A[1], m]], [A[5], A[6], A[7]]); if (!s3) return null;
+      const a0 = s3[0] / 2, b0 = s3[1] / 2, nR = Math.sqrt(s3[2] + a0 * a0 + b0 * b0); if (!isFinite(nR) || nR < .17 || nR > .5) return null;
+      cc = [cc[0] + a0 * S.u[0] + b0 * S.w[0], cc[1] + a0 * S.u[1] + b0 * S.w[1], cc[2] + a0 * S.u[2] + b0 * S.w[2]]; RR = nR;
+      if (j === 2) sc = giro(cc, nn, RR); }
+    return { c: cc, R: RR, sc }; }
+  // settori del giro completo che hanno punti esattamente sul cerchio del battistrada e vicini al piano medio
+  function giro(cc, nn, RR) { const [u, w] = vecs(nn), NG = 96, h = new Uint8Array(NG); for (let i = 0; i < QFs.length; i += 3) { const q0 = QFs[i] - cc[0], q1 = QFs[i + 1] - cc[1], q2 = QFs[i + 2] - cc[2], t = q0 * nn[0] + q1 * nn[1] + q2 * nn[2]; if (Math.abs(t) > .05) continue;
+      const a = q0 * u[0] + q1 * u[1] + q2 * u[2], b = q0 * w[0] + q1 * w[1] + q2 * w[2]; if (Math.abs(Math.hypot(a, b) - RR) > .01 * RR) continue; const k = Math.min(NG - 1, Math.floor((Math.atan2(b, a) + Math.PI) / (2 * Math.PI) * NG)); if (h[k] < 2) h[k]++; }
+    let s2 = 0; for (let k = 0; k < NG; k++) if (h[k] >= 2) s2++; return s2; }
+  best = -1; let bp = 0, bk = 0; const cand = []; const prova = (ps, kc) => { const p = ps / 57.3, k = kc / 57.3, nn = nrm([Math.sin(p) * Math.cos(k), -Math.sin(k), Math.cos(p) * Math.cos(k)]);
+    const wv = vecs(nn)[1], c0 = [sx + R0 * wv[0], ym + R0 * wv[1], sz + R0 * wv[2]]; // centro sopra l'impronta lungo la verticale della ruota (inclinata con la moto)
+    const f = cerchio(c0, nn, R0); if (!f) return; const sc = f.sc - .01 * (Math.abs(ps) + Math.abs(kc - (isFinite(piega) ? piega : 0))); cand.push({ sc, n: nn, f, ps, kc }); if (sc > best) { best = sc; n = nn; D.cs = f; bp = ps; bk = kc; } };
+  // posteriore (mai sterzata): si cerca soprattutto l'inclinazione della moto (cavalletto laterale fino a 24°); anteriore: sterzo attorno all'inclinazione nota
+  if (!ant) { for (let ps = -6; ps <= 6; ps += 6) for (let kc = -24; kc <= 24; kc += 4) prova(ps, kc); }
+  else { const k0 = isFinite(piega) ? Math.round(piega / 3) * 3 : 0, kr = isFinite(piega) ? 24 : 30; for (let ps = -54; ps <= 54; ps += 6) for (let kc = k0 - kr; kc <= k0 + kr; kc += 6) prova(ps, kc); } // manubrio anche a fine corsa (moto parcheggiata)
+  { const p0 = bp, k0 = bk; for (let ps = p0 - 3; ps <= p0 + 3; ps += 3) for (let kc = k0 - 3; kc <= k0 + 3; kc += 3) if (ps !== p0 || kc !== k0) prova(ps, kc); }
+  // rifinitura (cerchio nel piano + piano medio tra le spalle) a partire da un orientamento; restituisce anche la qualità finale
+  function rifinisci(c, n, R, fisso) { const Rs = R, D2 = {};
+    let ok = false, kept = 0, half = .17, Wt = null;
+    for (let it = 0; it < 16; it++) {
+      const S = settori(c, n, R, half), { u, w } = S;
+      // 1) cerchio esterno nel piano: punti più esterni dei settori sotto l'asse
+      const ds = []; for (let k = 0; k < NB; k++) if (S.bd[k] > 0 && inArc(k)) ds.push(S.bd[k]); if (ds.length < NB * .2) { D2.why = 'settori ' + ds.length; break; }
+      ds.sort((a, b) => a - b); const med = ds[ds.length >> 1]; const K = []; for (let k = 0; k < NB; k++) if (S.bd[k] > 0 && inArc(k) && Math.abs(S.bd[k] - med) <= .02 * med) K.push(k);
+      if (K.length < NB * .16) { D2.why = 'tenuti ' + K.length; break; }
+      const A = [0, 0, 0, 0, 0, 0, 0, 0]; for (const k of K) { const x = S.ba[k], y = S.bb[k], z = x * x + y * y; A[0] += x; A[1] += y; A[2] += x * x; A[3] += y * y; A[4] += x * y; A[5] += x * z; A[6] += y * z; A[7] += z; }
+      const s3 = solve3([[A[2], A[4], A[0]], [A[4], A[3], A[1]], [A[0], A[1], K.length]], [A[5], A[6], A[7]]); if (!s3) { D2.why = 'sistema'; break; }
+      const a0 = s3[0] / 2, b0 = s3[1] / 2, nR = Math.sqrt(s3[2] + a0 * a0 + b0 * b0);
+      if (!isFinite(nR) || Math.abs(nR - Rs) > .12 * Rs) { D2.why = 'salto ' + (isFinite(nR) ? nR.toFixed(3) : 'nan'); break; }
+      const cc = [c[0] + a0 * u[0] + b0 * w[0], c[1] + a0 * u[1] + b0 * w[1], c[2] + a0 * u[2] + b0 * w[2]];
+      // 2) piano medio della ruota: punto di mezzo tra le due spalle del battistrada in ogni settore (vale per corone tonde e piatte)
+      const Wk = []; for (let k = 0; k < NB; k++) if (inArc(k) && S.tn[k] >= 3) Wk.push(S.t1[k] - S.t0[k]); if (Wk.length < NB * .2) { D2.why = 'fascia ' + Wk.length; break; }
+      Wk.sort((a, b) => a - b); const wm = Wk[Wk.length >> 1]; const M = [];
+      for (let k = 0; k < NB; k++) { if (!inArc(k) || S.tn[k] < 3) continue; const wk = S.t1[k] - S.t0[k]; if (Math.abs(wk - wm) > .12 * wm + .004) continue; // settore disturbato (scarico, catena accanto al pneumatico)
+        const an = (k + .5) / NB * 2 * Math.PI - Math.PI, rr = R, tm = (S.t0[k] + S.t1[k]) / 2, a = Math.cos(an) * rr, b = Math.sin(an) * rr;
+        M.push([c[0] + a * u[0] + b * w[0] + tm * n[0], c[1] + a * u[1] + b * w[1] + tm * n[1], c[2] + a * u[2] + b * w[2] + tm * n[2]]); }
+      if (M.length < NB * .16) { D2.why = 'mezzerie ' + M.length; break; }
+      let mm = [0, 0, 0]; for (const p of M) for (let j = 0; j < 3; j++) mm[j] += p[j] / M.length;
+      const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]; for (const p of M) { const q = [p[0] - mm[0], p[1] - mm[1], p[2] - mm[2]]; for (let a = 0; a < 3; a++) for (let b = a; b < 3; b++) C[a][b] += q[a] * q[b]; }
+      C[1][0] = C[0][1]; C[2][0] = C[0][2]; C[2][1] = C[1][2]; let nn = fisso ? n : nrm(eig3min(C)); if (nn[2] < 0) nn = nn.map(x => -x);
+      if (Math.acos(Math.min(1, nn[2])) > .75) { D2.why = 'piano ' + (Math.acos(nn[2]) * 57.3).toFixed(0) + '°'; break; }
+      const tc = (mm[0] - cc[0]) * nn[0] + (mm[1] - cc[1]) * nn[1] + (mm[2] - cc[2]) * nn[2], nc = [cc[0] + tc * nn[0], cc[1] + tc * nn[1], cc[2] + tc * nn[2]];
+      if (Math.hypot(nc[0] - sx, nc[1] - (ym + Rs)) > .35 * Rs) { D2.why = 'centro lontano'; break; }
+      Wt = wm; half = Math.min(.17, Math.max(.05, wm / 2 + .025));
+      const moved = Math.hypot(nc[0] - c[0], nc[1] - c[1], nc[2] - c[2]) + Math.abs(nR - R) + Math.hypot(nn[0] - n[0], nn[1] - n[1], nn[2] - n[2]) * R;
+      c = nc; n = nn; R = nR; ok = true; kept = K.length; D2.it = it; if (moved < 5e-5 && it > 2) break; }
+    return { ok: ok && D2.it >= 1, c, n, R, Wt, kept, D: D2 }; }
+  // orientamento con giro netto: si rifinisce quello; altrimenti (ruota coperta da parafanghi carenati) si rifiniscono i migliori e vince il più coerente
+  let res = null; if (D.cs && D.cs.sc >= 60) { res = rifinisci(D.cs.c, n, D.cs.R, false); D.cs = D.cs.sc; }
+  else { const top = cand.sort((a, b) => b.sc - a.sc).slice(0, 5); D.cs = D.cs ? D.cs.sc : 0;
+    for (const t of top) { const r = rifinisci(t.f.c, t.n, t.f.R, false); if (r.ok) { const q = r.kept + 30 * giro(r.c, r.n, r.R) / 96; if (!res || q > res.q) { res = r; res.q = q; D.scelto = [t.ps, t.kc]; } } }
+    if (!res) { const f0 = cerchio(c, [0, 0, 1], R0); if (f0) { const r = rifinisci(f0.c, [0, 0, 1], f0.R, true); if (r.ok) { res = r; D.fisso = true; } } } }
+  if (!res || !res.ok) { D.why = (res && res.D.why) || D.why || 'nessun orientamento'; return { ok: false, c, n, R, Wt: null, D }; }
+  Object.assign(D, res.D); const ok = true, kept = res.kept, Wt = res.Wt; c = res.c; n = res.n; R = res.R;
+  D.kept = kept; return { ok, c, n, R, Wt, D };
+}
+
 export function initConfig(ctx) {
   const { scene, camera, controls, composer, invalidate, $, parts, toast } = ctx;
   /* contorno di selezione (come nei configuratori professionali) */
@@ -199,7 +313,7 @@ export function initConfig(ctx) {
   function removeAcc(o, restoreStock) {
     const e = config.find(x => x.obj === o); const par = o.parent; const stock = e && restoreStock ? e.stock || [] : [];
     const kids = e ? config.filter(x => x.kitOf === e) : [];
-    const apply = () => { par && par.remove(o); stock.forEach(s => s.restore()); if (e) removeEntry(e); kids.forEach(k => { if (k.obj && k.obj.parent) k.obj.parent.remove(k.obj); removeEntry(k); }); if (sel && sel.obj === o) select(null); };
+    const apply = () => { if (ctx.tc && ctx.tc.object === o && ctx.tcSwap) ctx.tcSwap(null); par && par.remove(o); stock.forEach(s => s.restore()); if (e) removeEntry(e); kids.forEach(k => { if (k.obj && k.obj.parent) k.obj.parent.remove(k.obj); removeEntry(k); }); if (sel && sel.obj === o) select(null); };
     const back = () => { par && par.add(o); stock.forEach(s => s.apply()); if (e) addEntry(e); kids.forEach(k => { if (k.obj && k.objPar) k.objPar.add(k.obj); addEntry(k); }); };
     kids.forEach(k => k.objPar = k.obj && k.obj.parent); apply(); record((restoreStock ? 'ripristina di serie ' : 'elimina ') + (e ? e.n : nameOf({ kind: 'acc', obj: o })), back, apply); afterChange();
   }
@@ -329,22 +443,30 @@ export function initConfig(ctx) {
   const TYRE_RX = /tire|tyre|gomm|pneu|dunlop|michelin|pirelli|metzeler|bridgestone|avon|rubber|battistr/i;
   // divide una sola volta le ruote di serie in 4 gruppi: pneumatico e cerchio (con mozzo, raggi, disco) di ciascuna ruota
   function wheelRoles() { const M = ctx.getModel(); if (!M) return null; if (M.userData.__wr) return M.userData.__wr;
-    const idx = ST.buildIndex(M), W = idx.W; if (!W.front || !W.rear) return null; let L = ST.detect(idx, 'ruote'); const viaW = !L.length; if (viaW) L = idx.isl.filter(I => I.box.intersectsBox(W.front.V) || I.box.intersectsBox(W.rear.V)); if (!L.length) return null;
+    const idx = ST.buildIndex(M), W0 = idx.W; if (!W0.front || !W0.rear) return null;
+    // assi misurati sul battistrada (più precisi dei pezzi riconosciuti): base per distinguere pneumatico, cerchio e il resto
+    const AF = asseRuota('ant'), AP = asseRuota('post'), Z = new THREE.Vector3(0, 0, 1);
+    const vol = A => { const e = i => A.R * 1.03 * Math.sqrt(Math.max(0, 1 - A.n.getComponent(i) ** 2)) + .2 * Math.abs(A.n.getComponent(i)); return new THREE.Box3(new THREE.Vector3(A.c.x - e(0), A.c.y - e(1), A.c.z - e(2)), new THREE.Vector3(A.c.x + e(0), A.c.y + e(1), A.c.z + e(2))); };
+    const W = { front: AF && AF.ok ? { c: AF.c, R: AF.R, V: vol(AF), Wt: AF.Wt, n: AF.n } : { ...W0.front, n: Z }, rear: AP && AP.ok ? { c: AP.c, R: AP.R, V: vol(AP), Wt: AP.Wt, n: AP.n } : { ...W0.rear, n: Z } };
+    const q3 = new THREE.Vector3();
+    let L = ST.detect(idx, 'ruote'); const viaW = !L.length; if (viaW) L = idx.isl.filter(I => I.box.intersectsBox(W.front.V) || I.box.intersectsBox(W.rear.V)); if (!L.length) return null;
     const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), roleOf = new Map(), rimMax = { ant: [], post: [] };
     const per = new Map(); L.forEach(I => { if (!per.has(I.mesh)) per.set(I.mesh, []); per.get(I.mesh).push(I.id); });
     for (const [m, ids] of per) { const isl = islands(m), p = m.geometry.attributes.position, zone = !!m.userData.zone, want = new Set(ids); m.updateMatrixWorld(true);
       let next = 0; for (let t = 0; t < isl.length; t++) next = Math.max(next, isl[t] + 1);
       const tri = new Map(); // id isola -> [{t, pos, r}]
       for (let t = 0; t < isl.length; t++) { if (!zone && !want.has(isl[t])) continue; a.fromBufferAttribute(p, t * 3).applyMatrix4(m.matrixWorld); b.fromBufferAttribute(p, t * 3 + 1).applyMatrix4(m.matrixWorld); c.fromBufferAttribute(p, t * 3 + 2).applyMatrix4(m.matrixWorld);
-        const x = (a.x + b.x + c.x) / 3, y = (a.y + b.y + c.y) / 3, zz = (a.z + b.z + c.z) / 3, F = Math.abs(x - W.front.c.x) < Math.abs(x - W.rear.c.x), Wc = F ? W.front : W.rear, r = Math.abs(zz - Wc.c.z) > .16 ? 9 : Math.hypot(x - Wc.c.x, y - Wc.c.y) / Wc.R;
+        const x = (a.x + b.x + c.x) / 3, y = (a.y + b.y + c.y) / 3, zz = (a.z + b.z + c.z) / 3, F = Math.abs(x - W.front.c.x) < Math.abs(x - W.rear.c.x), Wc = F ? W.front : W.rear;
+        q3.set(x - Wc.c.x, y - Wc.c.y, zz - Wc.c.z); const tz = q3.dot(Wc.n), dz = Math.abs(tz); let r = dz > .16 ? 9 : Math.sqrt(Math.max(0, q3.lengthSq() - tz * tz)) / Wc.R; if (r >= .83 && Wc.Wt && dz > Wc.Wt / 2 + .015) r = 9; // fuori dalla larghezza del pneumatico: forcella, forcellone, parafango
         if (!tri.has(isl[t])) tri.set(isl[t], []); tri.get(isl[t]).push({ t, pos: F ? 'ant' : 'post', r, R: Wc.R }); }
       const tyreMat = TYRE_RX.test(m.material && m.material.name || '');
       for (const [id, T] of tri) { let sr = 0, mn = 9, mx = 0, nA = 0; T.forEach(q => { sr += q.r; mn = Math.min(mn, q.r); mx = Math.max(mx, q.r); if (q.pos === 'ant') nA++; });
         const mean = sr / T.length, mixed = zone || viaW || (!tyreMat && mn < .7 && mx > .93) || (nA && nA < T.length);
-        if (!mixed) { const pos = nA ? 'ant' : 'post', ty = tyreMat || mean >= .84; roleOf.set(m.uuid + ':' + id, [m, id, pos + (ty ? 'T' : 'R')]); if (!ty) T.forEach(q => rimMax[pos].push(q.r * q.R)); continue; }
+        if (!mixed) { if (mean > 1.045 && !tyreMat) continue; // tutto fuori dal battistrada (parafango, telaio): non è un pezzo della ruota
+          const pos = nA ? 'ant' : 'post', ty = tyreMat || mean >= .84; roleOf.set(m.uuid + ':' + id, [m, id, pos + (ty ? 'T' : 'R')]); if (!ty) T.forEach(q => rimMax[pos].push(q.r * q.R)); continue; }
         // isola mista (zona unica o gomma e cerchio uniti): divisione triangolo per triangolo
-        const sub = new Map(); for (const q of T) { if (q.r > 1.08) continue; const role = q.pos + (q.r >= .83 ? 'T' : 'R'); if (!sub.has(role)) sub.set(role, next++); isl[q.t] = sub.get(role); if (role.endsWith('R')) rimMax[q.pos].push(q.r * q.R); }
-        for (const q of T) if (q.r > 1.08) isl[q.t] = next; next++;
+        const sub = new Map(); for (const q of T) { if (q.r > 1.045) continue; const role = q.pos + (q.r >= .83 ? 'T' : 'R'); if (!sub.has(role)) sub.set(role, next++); isl[q.t] = sub.get(role); if (role.endsWith('R')) rimMax[q.pos].push(q.r * q.R); }
+        for (const q of T) if (q.r > 1.045) isl[q.t] = next; next++;
         for (const [role, nid] of sub) roleOf.set(m.uuid + ':' + nid, [m, nid, role]); } }
     const out = { antT: [], antR: [], postT: [], postR: [], rim: {} }, split = new Map();
     for (const [m, id, role] of roleOf.values()) { if (!split.has(m)) split.set(m, new Map()); split.get(m).set(id, role); }
@@ -354,8 +476,37 @@ export function initConfig(ctx) {
   /* unità del modello per metro, ricavate dai pneumatici di serie (diametro reale della misura di serie / raggio misurato sul 3D) */
   // per ruota: lo stesso pneumatico di serie rimontato coincide esattamente con quello del modello 3D; l'altra ruota fa da riserva
   function scalaRuote(pos) { const M = ctx.getModel(), sp = SPEC[ctx.cur() && ctx.cur().id]; if (!M || !sp) return 1; const W = ST.buildIndex(M).W, ks = {};
-    for (const [k2, w, m] of [['ant', W.front, sp.gommaAnt], ['post', W.rear, sp.gommaPost]]) { const t = GDB.parseMisura(m); if (w && t && t.diam) { const v = w.R / (t.diam / 2000); if (v > .6 && v < 1.6) ks[k2] = v; } }
+    for (const [k2, w, m] of [['ant', W.front, sp.gommaAnt], ['post', W.rear, sp.gommaPost]]) { const t = GDB.parseMisura(m), A = w && asseRuota(k2), R = A && A.ok ? A.R : w && w.R; if (w && t && t.diam) { const v = R / (t.diam / 2000); if (v > .6 && v < 1.6) ks[k2] = v; } }
     return ks[pos] || ks.ant || ks.post || 1; }
+  /* asse della ruota (centro del mozzo) misurato sul pneumatico di serie: cerchio esterno del battistrada calcolato ai minimi quadrati sui punti
+     più esterni di ogni settore (parafango, forcella e appiattimento a terra scartati) e piano medio del battistrada. Gomme, cerchi e ruote nuove
+     si montano esattamente su questo asse, senza ritocchi a mano */
+  function asseRuota(k) { const M = ctx.getModel(); if (!M) return null; const cache = M.userData.__asse || (M.userData.__asse = {}); if (cache[k] !== undefined) return cache[k];
+    const W0 = ST.buildIndex(M).W[k === 'ant' ? 'front' : 'rear'], D = {}, fb = why => { D.why = why; return (cache[k] = W0 ? { c: W0.c.clone(), R: W0.R, ok: false, Wt: null, D } : null); };
+    M.updateMatrixWorld(true);
+    // geometria di serie della moto (accessori esclusi), solo le mesh verso l'estremità di quella ruota
+    const B = new THREE.Box3(), mb = new THREE.Box3(), ms = []; M.traverse(o => { if (!o.isMesh || o.userData.acc || o.userData.accPart || !o.geometry || !o.geometry.attributes.position) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); mb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); B.union(mb); ms.push([o, mb.clone()]); });
+    if (B.isEmpty()) return fb('vuoto'); const L = B.max.x - B.min.x, ant = k === 'ant';
+    const X0 = ant ? B.max.x - .34 * L : B.min.x, X1 = ant ? B.max.x : B.min.x + .34 * L, RB = new THREE.Box3(new THREE.Vector3(X0, B.min.y - .01, B.min.z), new THREE.Vector3(X1, B.min.y + .95, B.max.z));
+    const P = [], v = new THREE.Vector3();
+    // punti sulle superfici, non solo sui vertici: i pneumatici a pochi poligoni hanno vertici solo ogni 10° circa del battistrada
+    const A3 = new THREE.Vector3(), B3 = new THREE.Vector3(), C3 = new THREE.Vector3(), dentro = q => q.x >= X0 && q.x <= X1 && q.y <= RB.max.y;
+    for (const [o, b] of ms) { if (!b.intersectsBox(RB)) continue; const g = o.geometry, p = g.attributes.position, ix = g.index, nT = (ix ? ix.count : p.count) / 3;
+      if (nT > 400000) { const st = Math.max(1, Math.floor(p.count / 120000)); for (let i = 0; i < p.count; i += st) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); if (dentro(v)) P.push(v.x, v.y, v.z); } continue; }
+      for (let t = 0; t < nT; t++) { const i0 = ix ? ix.getX(t * 3) : t * 3, i1 = ix ? ix.getX(t * 3 + 1) : t * 3 + 1, i2 = ix ? ix.getX(t * 3 + 2) : t * 3 + 2;
+        A3.fromBufferAttribute(p, i0).applyMatrix4(o.matrixWorld); B3.fromBufferAttribute(p, i1).applyMatrix4(o.matrixWorld); C3.fromBufferAttribute(p, i2).applyMatrix4(o.matrixWorld);
+        if (!dentro(A3) && !dentro(B3) && !dentro(C3)) continue; const m = Math.min(8, Math.max(1, Math.ceil(Math.max(A3.distanceTo(B3), B3.distanceTo(C3), C3.distanceTo(A3)) / .015)));
+        if (m === 1) { v.copy(A3).add(B3).add(C3).multiplyScalar(1 / 3); if (dentro(v)) P.push(v.x, v.y, v.z); continue; } // triangoli piccoli: basta il baricentro
+        for (let i = 0; i <= m; i++) for (let j = 0; j <= m - i; j++) { const u = i / m, w2 = j / m; v.set(A3.x + u * (B3.x - A3.x) + w2 * (C3.x - A3.x), A3.y + u * (B3.y - A3.y) + w2 * (C3.y - A3.y), A3.z + u * (B3.z - A3.z) + w2 * (C3.z - A3.z)); if (dentro(v)) P.push(v.x, v.y, v.z); } } }
+    D.n = P.length / 3; if (window.__asseDbg) window.__asseDbg[k] = P; if (P.length < 900) return fb('pochi punti');
+    // anteriore: l'inclinazione della moto si misura prima sulla posteriore (mai sterzata)
+    const AP = ant ? asseRuota('post') : null, piega = AP && AP.ok && AP.D && isFinite(AP.D.camber) ? AP.D.camber : undefined;
+    const f = fitRuota(P, ant, piega); Object.assign(D, f.D); if (!f.ok) return fb(D.why || 'adattamento');
+    const c = new THREE.Vector3(...f.c), n = new THREE.Vector3(...f.n).normalize();
+    // controllo di coerenza con la ruota riconosciuta dai pezzi (se c'è): mai a più di metà raggio
+    if (W0 && W0.c.distanceTo(c) > .5 * Math.max(W0.R, f.R) && Math.abs(W0.c.x - c.x) > .5 * f.R) D.diversoDaPezzi = +W0.c.distanceTo(c).toFixed(3);
+    D.sterzo = +(Math.atan2(n.x, n.z) * 57.3).toFixed(1); D.camber = +(Math.asin(Math.max(-1, Math.min(1, -n.y))) * 57.3).toFixed(1);
+    return (cache[k] = { c, n, R: f.R, ok: true, Wt: f.Wt, D }); }
   function cerchioMontato(pos) { const m = config.find(e => e.slot === 'ruote' && e.wh && e.wh.pos === pos && e.wh.parte !== 'gomma' && !e.kitOf); if (m) return +((m.it.o || {}).diametro) || null;
     const sp = SPEC[ctx.cur() && ctx.cur().id], c = sp && (pos === 'ant' ? sp.cerchioAnt : sp.cerchioPost); return c ? c.d : null; }
   function gommaSerie(pos) { const sp = SPEC[ctx.cur() && ctx.cur().id]; return sp ? (pos === 'ant' ? sp.gommaAnt : sp.gommaPost) : null; }
@@ -421,12 +572,13 @@ export function initConfig(ctx) {
       } else { const o = tag(buildItem(it), it, slot); o.position.set(g.B.max.x - .5, g.B.min.y + .8 * g.S.y, .3); objs.push(o); note = 'manubrio non riconosciuto: regola la posizione in Officina'; }
     } else if (slot && slot.id === 'ruote' && g.wheels) {
       // una sola ruota e un solo componente per volta: mai entrambe in automatico
-      const W = g.wheels, k = wSel.pos, c = k === 'ant' ? W.front : W.rear, WR = wheelRoles(), Rw = (ST.buildIndex(ctx.getModel()).W[k === 'ant' ? 'front' : 'rear'] || {}).R || W.R;
+      const W = g.wheels, k = wSel.pos, WR = wheelRoles(), AX = asseRuota(k), c = AX && AX.ok ? AX.c : k === 'ant' ? W.front : W.rear;
+      const Rw = AX && AX.ok ? AX.R : (ST.buildIndex(ctx.getModel()).W[k === 'ant' ? 'front' : 'rear'] || {}).R || W.R;
       const rimR = WR && WR.rim[k] ? WR.rim[k] : Rw * .7, o2 = { ...it.o, parte: wSel.parte, __k: scalaRuote(k) }, Tm = o2.misura ? GDB.parseMisura(o2.misura) : null;
       if (wSel.parte === 'cerchio') o2.__Rr = rimR - .009;                       // cerchio dentro il pneumatico di serie
       if (wSel.parte === 'gomma') { o2.__Rr = rimR - .004; o2.__Rt = Tm ? Tm.diam / 2000 * o2.__k : Rw * .995; } // sul cerchio di serie: diametro reale della misura scelta
       if (wSel.parte === 'gomma' && !o2.canale) { const sp = SPEC[ctx.cur() && ctx.cur().id], cr = sp && (k === 'ant' ? sp.cerchioAnt : sp.cerchioPost); if (cr && cr.w) o2.canale = cr.w; } // il pneumatico prende la larghezza del cerchio che resta
-      const it2 = { ...it, o: o2 }, o = tag(buildItem(it2), it2, slot); o.position.copy(c);
+      const it2 = { ...it, o: o2 }, o = tag(buildItem(it2), it2, slot); o.position.copy(c); if (AX && AX.ok && AX.n) o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), AX.n); // stesso asse della ruota di serie, anche se sterzata
       o.userData.R = wSel.parte === 'cerchio' ? rimR : Rw; o.userData.ruota = k; o.userData.parteRuota = wSel.parte;
       o.userData.accName = (Tm ? (wSel.parte === 'completa' ? 'Ruota ' + Tm.cerchio + '" con pneumatico ' : 'Pneumatico ') + o2.misura + (o2.linea ? ' ' + o2.linea : '') + (o2.fianco === 'bianco' ? ' fascia bianca' : '')
         : wSel.parte === 'gomma' ? 'Pneumatico ' + (o2.gomma || 130) + ' mm' : it.n.split(' · ')[0] + (wSel.parte === 'cerchio' ? ' (solo cerchio)' : '')) + (k === 'ant' ? ' — anteriore' : ' — posteriore'); objs.push(o);
@@ -473,8 +625,10 @@ export function initConfig(ctx) {
     const prevObjs = prev.flatMap(e => [e.obj, ...(e.extra || [])]), prevPar = prevObjs.map(o => o.parent);
     const entry = { k: it.k, n: wSel && objs[0] ? objs[0].userData.accName : it.n, cat: it.cat, slot: slot && slot.id, it, obj: objs[0], extra: objs.slice(1), stock, kit: wSel && wSel.parte === 'gomma' ? [] : kitFor(it), anchor, side: anchorSide, fit: seatFitUsed, wh: wSel };
     const pst = wSel ? prev.flatMap(e => e.stock || []) : []; // ruote: i pezzi di serie della ruota sostituita tornano visibili, poi si nascondono solo quelli del nuovo componente
-    const apply = () => { prevObjs.forEach(o => o.parent && o.parent.remove(o)); prev.forEach(removeEntry); pst.forEach(s => s.restore()); objs.forEach(o => scene.add(o)); stock.forEach(s => s.apply()); addEntry(entry); };
-    const undo = () => { objs.forEach(o => o.parent && o.parent.remove(o)); stock.forEach(s => s.restore()); pst.forEach(s => s.apply()); removeEntry(entry); prevObjs.forEach((o, i) => (prevPar[i] || scene).add(o)); prev.forEach(addEntry); };
+    // le maniglie dell'officina agganciate al pezzo sostituito passano al pezzo nuovo (mai agganciate a un oggetto tolto dalla scena)
+    const tcTo = (from, to) => { if (ctx.tc && ctx.tc.object && from.includes(ctx.tc.object) && ctx.tcSwap) ctx.tcSwap(to || null); };
+    const apply = () => { prevObjs.forEach(o => o.parent && o.parent.remove(o)); prev.forEach(removeEntry); pst.forEach(s => s.restore()); objs.forEach(o => scene.add(o)); stock.forEach(s => s.apply()); addEntry(entry); tcTo(prevObjs, objs[0]); };
+    const undo = () => { objs.forEach(o => o.parent && o.parent.remove(o)); stock.forEach(s => s.restore()); pst.forEach(s => s.apply()); removeEntry(entry); prevObjs.forEach((o, i) => (prevPar[i] || scene).add(o)); prev.forEach(addEntry); tcTo(objs, prevObjs[0]); };
     // se c'era un accessorio nello stesso slot i pezzi di serie restano nascosti dai suoi stock
     if (prev.length && !wSel) { entry.stock = prev.flatMap(e => e.stock || []).concat(stock); }
     apply(); record('monta ' + it.n, undo, apply); objs.forEach(o => ctx.addedObj && ctx.addedObj(o));
@@ -631,5 +785,8 @@ export function initConfig(ctx) {
   renderList(); renderPanel(); syncQ();
   const toRm = [];
   return { select, selectAt, selectPart, selectAcc, get sel() { return sel; }, paintPart, paintMany, hidePart, resetPart, mount, fitAll, focus, undo: doUndo, redo: doRedo, record, reset() { config.forEach(e => [e.obj, ...(e.extra || [])].forEach(o => o && o.parent && o.parent.remove(o))); scene.traverse(o => { if (o.userData && o.userData.acc && o.parent === scene) toRm.push(o); }); toRm.splice(0).forEach(o => scene.remove(o)); config.length = 0; H.length = 0; R.length = 0; sel = null; slotView = null; geoCache = null; outline.selectedObjects = []; tyRim = null; syncStore(); renderList(); renderPanel(); syncQ(); },
-    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel, wheelRoles, wheelZoneSplit, syncStore, scalaRuote };
+    setSize(w, h) { outline.setSize(w, h); }, outline, config, findBars, renderPanel, wheelRoles, wheelZoneSplit, syncStore, scalaRuote, asseRuota,
+    // l'officina ha ricostruito un accessorio (nuove opzioni): la configurazione punta al pezzo nuovo
+    swapped(a, b) { let n = 0; for (const e of config) { if (e.obj === a) { e.obj = b; n++; } if (e.extra) { const i = e.extra.indexOf(a); if (i >= 0) { e.extra[i] = b; n++; } } }
+      if (sel && sel.obj === a) { sel = { ...sel, obj: b }; outline.selectedObjects = meshesOf(sel); } if (n) afterChange(); } };
 }

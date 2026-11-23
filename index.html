@@ -201,7 +201,7 @@ a{color:var(--acc2)}
       <div class="row"><label>Altezza Y</label><input type="range" id="esy" min=".3" max="2.5" step=".01" value="1"><b id="osy">100%</b></div>
       <div class="row"><label>Profondità Z</label><input type="range" id="esz" min=".3" max="2.5" step=".01" value="1"><b id="osz">100%</b></div>
       <label class="toggle" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" id="eLock"> proporzionale</label>
-      <div class="row" style="flex-wrap:wrap"><button class="btn sm" id="eDel">Elimina</button><button class="btn sm" id="eDup">Duplica sull'altro lato</button><button class="btn sm" id="eReset">Ripristina pezzo</button><button class="btn sm" id="eUndo">Annulla</button><button class="btn sm" id="eShowAll">Mostra tutto</button><button class="btn sm" id="eMirror" style="display:none"></button></div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" id="eDel">Elimina</button><button class="btn sm" id="eDup">Duplica sull'altro lato</button><button class="btn sm" id="eReset">Ripristina pezzo</button><button class="btn sm pri" id="eAsse" style="display:none" title="Riporta gomma, cerchio o ruota esattamente sull'asse del mozzo (centro, piano e inclinazione)">Centra sull'asse</button><button class="btn sm" id="eUndo">Annulla</button><button class="btn sm" id="eShowAll">Mostra tutto</button><button class="btn sm" id="eMirror" style="display:none"></button></div>
       <h3 style="margin-top:10px">Dimensione</h3>
       <div class="row" style="flex-wrap:wrap;gap:6px"><button class="btn sm" data-scl="0.95">− 5%</button><button class="btn sm" data-scl="0.99">− 1%</button><button class="btn sm" data-scl="1.01">+ 1%</button><button class="btn sm" data-scl="1.05">+ 5%</button><span class="note">tutto il pezzo, in proporzione</span></div>
       <h3 style="margin-top:10px">Ruota e capovolgi (esatto)</h3>
@@ -347,6 +347,7 @@ a{color:var(--acc2)}
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import * as STK from './js/stock.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
@@ -429,7 +430,7 @@ const SW=[['Rosso candy','#7e0b12','candy'],['Nero vivid','#0a0a0c','gloss'],['P
 /* ---------------- renderer ---------------- */
 const view=document.getElementById('view');
 /* telefono/tablet: memoria grafica limitata (iOS chiude la pagina se la supera). Se l'avvio precedente non è arrivato in fondo, si riparte in modalità leggera */
-const VERSIONE='1.7.0';
+const VERSIONE='1.7.1';
 const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 let FAILS=0,LASTF='';try{FAILS=+(localStorage.getItem('njd_fail')||0);if(localStorage.getItem('njd_avvio')==='in_corso')FAILS++;LASTF=localStorage.getItem('njd_fase')||'';localStorage.setItem('njd_fail',String(FAILS));localStorage.setItem('njd_avvio','in_corso');}catch(e){}
 const SAFE=MOBILE&&FAILS>=1,NOAUTO=MOBILE&&FAILS>=2;
@@ -475,6 +476,14 @@ const FLAKE=noiseNormal(7,.9),GRAIN=noiseNormal(3,.5);GRAIN.repeat.set(5,5);
 /* ---------------- stato ---------------- */
 let model=null,cur=null,parts=new Map(),selected=null,hidden=new Set(),decals=[],lastDecal=null;
 const loader=new GLTFLoader();loader.setMeshoptDecoder(MeshoptDecoder);
+/* Texture compresse KTX2 (Basis) per il telefono: restano compresse anche nella memoria grafica (da 4 a 8 volte meno delle immagini decompresse).
+   Prima del primo modello si prova la decodifica su una texture campione: se il telefono non la supporta si usano le versioni con texture WebP. */
+const KTX2=new KTX2Loader().setTranscoderPath('./lib/three/examples/jsm/libs/basis/').detectSupport(renderer);loader.setKTX2Loader(KTX2);
+let KTXP=null;
+function ktxPronto(){if(!MOBILE)return Promise.resolve(false);
+  return KTXP||(KTXP=Promise.race([KTX2.loadAsync('./lib/three/examples/jsm/libs/basis/prova.ktx2').then(t=>{const ok=!!(t&&t.mipmaps&&t.mipmaps.length);t.dispose();return ok;}),
+    new Promise(r=>setTimeout(()=>r(false),12000))]).catch(e=>{console.warn('KTX2 non disponibile, uso le texture WebP',e);return false;}));}
+async function fetchGlb(u){try{const r=await fetch(u);if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}return null;}
 
 function finishParams(f){return {gloss:{metalness:0,roughness:.28,clearcoat:1,clearcoatRoughness:.03},metallic:{metalness:.55,roughness:.35,clearcoat:1,clearcoatRoughness:.03,normalMap:FLAKE,normalScale:new THREE.Vector2(.08,.08)},
   candy:{metalness:.85,roughness:.2,clearcoat:1,clearcoatRoughness:.015,normalMap:FLAKE,normalScale:new THREE.Vector2(.06,.06)},pearl:{metalness:.25,roughness:.3,clearcoat:1,iridescence:1,iridescenceIOR:1.5,iridescenceThicknessRange:[180,520]},
@@ -555,7 +564,7 @@ const isGlb=b=>b&&b.byteLength>12&&new DataView(b).getUint32(0,true)===0x46546C6
 async function tauriGlb(dir,id){const T=window.__TAURI__;if(!(T&&T.core&&T.core.invoke))return null;try{const b=await T.core.invoke('leggi_glb',{cartella:dir,nome:id});const ab=b instanceof ArrayBuffer?b:(b&&b.buffer?b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength):(Array.isArray(b)?new Uint8Array(b).buffer:null));return isGlb(ab)?ab:null;}catch(e){console.warn('lettura diretta',dir,id,e);return null;}}
 async function partBuffer(id){
   {const b=await tauriGlb('parts',id);if(b)return b;}
-  if(MOBILE){try{const r=await fetch('parts/m/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}}
+  if(MOBILE){const b=((await ktxPronto())&&await fetchGlb('parts/k/'+id+'.glb'))||await fetchGlb('parts/m/'+id+'.glb');if(b)return b;}
   try{const r=await fetch('parts/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}
   window.__GLB=window.__GLB||{};const k='p_'+id;if(!window.__GLB[k])await loadScript('parts/'+id+'.js');
   const bin=atob(window.__GLB[k]);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[k];return u.buffer;}
@@ -563,7 +572,7 @@ window.__loadPart=id=>loadPart(id);
 async function loadPart(id){if(!PARTCACHE[id]){const buf=await partBuffer(id);const g=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));PARTCACHE[id]=g.scene;}return PARTCACHE[id];}
 async function modelBuffer(id){
   {const b=await tauriGlb('models',id);if(b)return b;}
-  if(MOBILE){try{const r=await fetch('models/m/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}}
+  if(MOBILE){const b=((await ktxPronto())&&await fetchGlb('models/k/'+id+'.glb'))||await fetchGlb('models/m/'+id+'.glb');if(b)return b;}
   try{const r=await fetch('models/'+id+'.glb');if(r.ok){const b=await r.arrayBuffer();if(isGlb(b))return b;}}catch(e){}
   if(!(window.__GLB&&window.__GLB[id])){document.getElementById('loadB').style.width='40%';await loadScript('models/'+id+'.js');}
   const b64=window.__GLB[id];const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[id];document.getElementById('loadB').style.width='90%';return u.buffer;}
@@ -769,11 +778,12 @@ let fullDPR=renderer.getPixelRatio(),lowT=null;function setDPR(d){if(Math.abs(re
 controls.addEventListener('start',()=>{clearTimeout(lowT);setDPR(Math.min(Q().move,fullDPR));});controls.addEventListener('end',()=>{clearTimeout(lowT);lowT=setTimeout(()=>setDPR(fullDPR),300);});
 const toastEl=$('toast');let toastT=null;function toast(t){toastEl.textContent=t;toastEl.style.display='inline';clearTimeout(toastT);toastT=setTimeout(()=>toastEl.style.display='none',5000);}
 const OF=initOfficina({loadPart,scene,camera,renderer,controls,invalidate,$,nice,toast,finishParams,FIN,getModel:()=>model,getParts:()=>parts,
+  asseRuota:k=>window.CFG&&window.CFG.asseRuota?window.CFG.asseRuota(k):null,onSwap:(a,b)=>{if(window.CFG&&window.CFG.swapped)window.CFG.swapped(a,b);},
   registerMesh:(m)=>{for(const p of parts.values())if(p.cur===m.material||p.orig===m.material){p.meshes.push([m,0]);return;}},
   catOfMesh:(o)=>{for(const p of parts.values())if(p.cur===o.material||p.orig===o.material)return p.cat;return '';}});
 OF.tc.addEventListener('dragging-changed',e=>{if(e.value)setDPR(Math.min(Q().move,fullDPR));else setDPR(fullDPR);});
 const mainEl=document.querySelector('main');
-const CFG=window.CFG=initConfig({scene,camera,controls,composer,renderer,invalidate,$,toast,nice,finishParams,FIN,SW,parts:()=>parts,hidden,setPartMat,repaint,bodyParts,getModel:()=>model,cur:()=>cur,tc:OF.tc,
+const CFG=window.CFG=initConfig({scene,camera,controls,composer,renderer,invalidate,$,toast,nice,finishParams,FIN,SW,parts:()=>parts,hidden,setPartMat,repaint,bodyParts,getModel:()=>model,cur:()=>cur,tc:OF.tc,tcSwap:o=>OF.swapSel(o),
   registerMesh:(m)=>{for(const p of parts.values())if(p.cur===m.material||p.orig===m.material){p.meshes.push([m,0]);return;}},
   thumbOf:OF.thumbOf,placeReal:it=>OF.placeItem(it),editObj:o=>{showTab('edit');openPanel('edit');OF.edit(o);},flyTo,
   refreshParts:()=>{syncSel();buildParts();},onSelect:s=>{if(s.kind==='part'){selected=s.name;syncSel();}},

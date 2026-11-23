@@ -49,6 +49,8 @@ function analyse(model, isl) {
       if (Math.abs(I.c.x - c.x) < .2 * R && Math.abs(I.c.y - c.y) < .2 * R) return true; return I.s.length() < .6 * R && corner(I) < R * .97 && Math.abs(I.c.z - c.z) < .12; };
     return { c, R, V, isl: isl.filter(I => inside(I.box, V, .005) && inR(I) && I.s.length() > .01) }; };
   const W = { front: front && rear && front !== rear ? wheel(front) : null, rear: front && rear && front !== rear ? wheel(rear) : null };
+  // due «pneumatici» troppo vicini (pezzi della stessa ruota, o ruota nascosta da parafanghi carenati): ruote cercate con gli altri metodi
+  if (W.front && W.rear && W.front.c.x - W.rear.c.x < .45 * L) { W.front = null; W.rear = null; }
   for (const [k, z] of [['front', 'ruota_ant'], ['rear', 'ruota_post']]) { if (W[k]) continue; const zi = isl.filter(I => I.mesh.userData.zone === z); if (!zi.length) continue; const b = new THREE.Box3(); zi.forEach(I => b.union(I.box));
     const c = b.getCenter(new THREE.Vector3()), R = Math.max(b.max.x - b.min.x, b.max.y - b.min.y) / 2; W[k] = { c, R, V: b, isl: zi }; }
   // modelli in un pezzo unico (scansioni, IA): ruote trovate sui vertici — punti d'appoggio a terra e cerchio del pneumatico per votazione

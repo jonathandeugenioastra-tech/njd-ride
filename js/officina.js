@@ -22,6 +22,13 @@ export function initOfficina(ctx){
  tc.addEventListener('objectChange',()=>{if(sel&&sel.userData.handleOf)rebuildPipe(sel.userData.handleOf,true);invalidate();syncScale();});
  tc.addEventListener('change',invalidate);
  let sel=null,undo=[],added=[],mode='piece',placing=null,building=null;
+ /* le maniglie restano agganciate solo a pezzi presenti nella scena: se il pezzo viene sostituito (nuova gomma, nuovo cerchio) o tolto,
+    si sganciano da sole invece di generare errori a ogni tocco */
+ const inScena=o=>{for(let p=o;p;p=p.parent)if(p===scene)return true;return false;};
+ function sgancia(){const o=tc.object;if(!o||inScena(o))return false;tc.detach();if(sel===o){sel=null;$('eName').textContent='Clicca un pezzo sulla moto';const a=$('eAsse');if(a)a.style.display='none';renderOpts(null);renderMats(null);}invalidate();return true;}
+ {const pd=tc.pointerDown.bind(tc),ph=tc.pointerHover.bind(tc),pm=tc.pointerMove.bind(tc),um=tc.updateMatrixWorld.bind(tc);
+  tc.pointerDown=p=>{if(sgancia())return;return pd(p);};tc.pointerHover=p=>{if(sgancia())return;return ph(p);};tc.pointerMove=p=>{if(sgancia())return;return pm(p);};
+  tc.updateMatrixWorld=f=>{if(tc.object&&!inScena(tc.object))sgancia();return um(f);};}
  const typeSel=$('eType');typeSel.innerHTML=Object.entries(TIPI).map(([k,t])=>`<option value="${k}">${t.n}</option>`).join('');
 
  /* ---------- isole: pezzi fisicamente separati dentro una mesh ---------- */
@@ -44,7 +51,7 @@ export function initOfficina(ctx){
  function select(o){sel=o;if(o){tc.attach(o);tc.setMode($('eMode').value);if(!o.userData.origin)o.userData.origin={p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};
    const nm=o.userData.accName||ctx.nice(o.material&&!Array.isArray(o.material)?o.material.name:o.name||'pezzo');$('eName').textContent=nm;
    const k=o.userData.kbType||guessType((o.material&&o.material.name||'')+' '+(o.name||''),ctx.catOfMesh(o));o.userData.kbType=k;typeSel.value=k;$('eAdv').innerHTML=adviceHTML(k,'info');syncScale();}
-  else{tc.detach();$('eName').textContent='Clicca un pezzo sulla moto';}renderOpts(o);renderMats(o);invalidate();}
+  else{tc.detach();$('eName').textContent='Clicca un pezzo sulla moto';}{const a=$('eAsse');if(a)a.style.display=o&&o.userData.ruota?'':'none';}renderOpts(o);renderMats(o);invalidate();}
  function syncScale(){if(!sel)return;for(const a of ['x','y','z']){$('es'+a).value=Math.abs(sel.scale[a]/(sel.userData.origin?sel.userData.origin.s[a]:1));$('os'+a).textContent=Math.round($('es'+a).value*100)+'%';}}
  for(const a of ['x','y','z'])$('es'+a).oninput=e=>{if(!sel)return;if(!e.target._u){pushUndo(sel);e.target._u=1;setTimeout(()=>e.target._u=0,600);}const s0=sel.userData.origin.s;const sg=b=>Math.sign(sel.scale[b]/s0[b])||1;sel.scale[a]=s0[a]*(+e.target.value)*sg(a);
    if($('eLock').checked){for(const b of ['x','y','z'])if(b!==a)sel.scale[b]=s0[b]*(+e.target.value)*sg(b);}syncScale();invalidate();};
@@ -54,6 +61,10 @@ export function initOfficina(ctx){
  function pushUndo(o){undo.push({o,p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone(),v:o.visible,par:o.parent});if(undo.length>200)undo.shift();}
  $('eDel').onclick=()=>{if(!sel)return;pushUndo(sel);sel.visible=false;advise(sel,'rimosso');tc.detach();sel=null;invalidate();};
  $('eDup').onclick=()=>{if(!sel)return;const c=sel.clone();c.userData={...sel.userData,origin:null};c.position.z=-c.position.z;c.scale.z*=sel.position.z===0?1:1;sel.parent.add(c);if(!c.userData.acc)ctx.registerMesh(c);undo.push({o:c,v:false,p:c.position.clone(),q:c.quaternion.clone(),s:c.scale.clone(),par:null,added:1});select(c);};
+ function centraAsse(o,silenzio){const A=ctx.asseRuota&&o&&o.userData.ruota?ctx.asseRuota(o.userData.ruota):null;if(!A||!A.c)return false;
+  const par=o.parent||scene;par.updateWorldMatrix(true,false);const pl=par.worldToLocal(A.c.clone());const pq=new THREE.Quaternion();par.getWorldQuaternion(pq);
+  const qw=A.n?new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1),A.n):new THREE.Quaternion();o.position.copy(pl);o.quaternion.copy(pq.invert().multiply(qw));o.updateMatrixWorld(true);if(sel===o)syncScale();invalidate();if(!silenzio)ctx.toast('Centrato sull\'asse del mozzo '+(o.userData.ruota==='ant'?'anteriore':'posteriore'));return true;}
+ {const b=$('eAsse');if(b)b.onclick=()=>{if(!sel)return;pushUndo(sel);if(!centraAsse(sel))ctx.toast('Asse della ruota non disponibile per questo modello');};}
  $('eReset').onclick=()=>{if(!sel||!sel.userData.origin)return;pushUndo(sel);const o=sel.userData.origin;sel.position.copy(o.p);sel.quaternion.copy(o.q);sel.scale.copy(o.s);sel.visible=true;syncScale();invalidate();};
  $('eUndo').onclick=()=>{const u=undo.pop();if(!u)return;if(u.swap){swapObj(u.swap[0],u.swap[1]);select(u.swap[1]);return;}if(u.added){u.o.parent&&u.o.parent.remove(u.o);if(sel===u.o)select(null);invalidate();return;}u.o.position.copy(u.p);u.o.quaternion.copy(u.q);u.o.scale.copy(u.s);u.o.visible=u.v;if(sel===u.o)syncScale();invalidate();};
  $('eShowAll').onclick=()=>{ctx.getModel()&&ctx.getModel().traverse(o=>{if(o.isMesh)o.visible=true;});added.forEach(a=>a.visible=true);invalidate();};
@@ -114,8 +125,9 @@ export function initOfficina(ctx){
   flt.innerHTML='<button class="chip on" data-c="">Tutti</button>'+cats.map(c=>`<button class="chip" data-c="${c}">${c}</button>`).join('');
   flt.onclick=e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.c;flt.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b));draw();};draw();}}
  function rebuildPro(o,opts){const n=buildPro(o.userData.pro,opts);n.position.copy(o.position);n.quaternion.copy(o.quaternion);n.scale.copy(o.scale);
-  Object.assign(n.userData,{acc:true,accName:o.userData.accName,kbType:o.userData.kbType||n.userData.type,origin:o.userData.origin,slotOv:{...(o.userData.slotOv||{})}});
-  n.traverse(c=>{if(c.isMesh){c.userData.accPart=n;}});swapObj(o,n);undo.push({swap:[n,o]});applySlots(n);select(n);}
+  const keep={};for(const x of ['item','slot','code','ruota','parteRuota','R','real'])if(o.userData[x]!==undefined)keep[x]=o.userData[x];
+  Object.assign(n.userData,keep,{acc:true,accName:o.userData.accName,kbType:o.userData.kbType||n.userData.type,origin:o.userData.origin,slotOv:{...(o.userData.slotOv||{})}});
+  n.traverse(c=>{if(c.isMesh){c.userData.accPart=n;}});swapObj(o,n);undo.push({swap:[n,o]});applySlots(n);ctx.onSwap&&ctx.onSwap(o,n);select(n);}
  function renderOpts(o){const box=$('eOpts');if(!box)return;const wrap=$('eOptsWrap');if(!o||!o.userData.pro){wrap.style.display='none';box.innerHTML='';return;}
   wrap.style.display='';const d=PRO_DEFS[o.userData.pro],cur=o.userData.opts;box.innerHTML='';
   d.opts.forEach(x=>{const row=document.createElement('div');row.className='row';const lb=document.createElement('label');lb.textContent=x.l;row.appendChild(lb);let inp;
@@ -225,5 +237,5 @@ export function initOfficina(ctx){
   else o=sel.clone(true);const nm=$('eName').textContent;clip.push({n:nm,o,kb:sel.userData.kbType||'generic'});$('eClipN').textContent=clip.length+' pezzi negli appunti';
   const L=$('clipLib');L.innerHTML='';clip.forEach((c,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=c.n;b.onclick=()=>{placing={n:c.n,cat:'Copiati',fn:()=>{const g=c.o.clone(true);g.traverse(x=>{if(x.isMesh){x.castShadow=x.receiveShadow=true;}});g.userData={type:c.kb};return g;}};$('placeHint').style.display='block';$('placeHint').textContent='Clicca sulla moto dove montare: '+c.n+' · Esc per annullare';};L.appendChild(b);});
   ctx.toast('Copiato negli appunti: '+nm);};
- return {handleClick,thumbOf,placeItem:it=>window.__cgPlace&&window.__cgPlace(it),edit:o=>{select(o);},reset(){select(null);added.forEach(a=>scene.remove(a));added=[];pipes.length=0;undo=[];},isBusy:()=>!!(placing||building),tc};
+ return {swapSel:o=>{if(o&&inScena(o))select(o);else select(null);},centraAsse,handleClick,thumbOf,placeItem:it=>window.__cgPlace&&window.__cgPlace(it),edit:o=>{select(o);},reset(){select(null);added.forEach(a=>scene.remove(a));added=[];pipes.length=0;undo=[];},isBusy:()=>!!(placing||building),tc};
 }
