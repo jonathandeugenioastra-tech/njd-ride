@@ -361,7 +361,7 @@ a{color:var(--acc2)}
   <div class="cp">© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Marchi e design delle moto appartengono ai rispettivi titolari.</div>
 </div></div>
 <div class="modal" id="mInfo"><div class="box" style="max-width:720px">
-  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.8.0</b><button class="btn sm" data-close>Chiudi</button></div>
+  <div class="row" style="justify-content:space-between"><b>NJ.D' RIDE · versione 1.8.1</b><button class="btn sm" data-close>Chiudi</button></div>
   <p>© 2026 dott. Jonathan D'Eugenio – Tutti i diritti riservati (L. 633/1941). Software, interfaccia, libreria accessori, consulente meccanico e testi sono opera dell'autore.</p>
   <h3>Modelli 3D di terzi (licenza CC BY 4.0)</h3>
   <ul class="note" id="infoCred"></ul>
@@ -412,6 +412,8 @@ const MODELS=[
  {id:'sp_am',sep:1,n:'Harley-Davidson Sportster',y:'—',tri:'158k',a:'_AM_',u:'https://sketchfab.com/3d-models/acfc1848f72a436d82c16595a258ab9c',brand:'hd'},
  {id:'evochop',sep:1,n:'Harley-Davidson Sportster Evolution chopper',y:'custom',tri:'142k',a:'merose',u:'https://sketchfab.com/3d-models/0216d0aba8934a7e8563cb3f12cb0d9b',brand:'hd'},
  {id:'dyna2',sep:1,n:'Harley-Davidson Dyna',y:'—',tri:'212k',a:'shahbazawan5',u:'https://sketchfab.com/3d-models/4ff5c6b7d4f6479abbce5b1f4775f63e',brand:'hd'},
+ {id:'dyna_bo_faro',n:'JO.NATHAN BLU/OTTONE · Dyna Fat Bob 2011 · faro singolo',y:'MBE 2027',tri:'2,4M',a:"dott. Jonathan D'Eugenio (base everhard, springer kowbassen – CC BY 4.0)",u:'https://sketchfab.com/3d-models/2016-harley-davidson-fxdls-dyna-low-rider-s-ad65bcb9282a46459a9a42f787bb5cbd',brand:'hd'},
+ {id:'dyna_bo_padrefiglio',n:'JO.NATHAN BLU/OTTONE · Dyna Fat Bob 2011 · fari padre e figlio',y:'MBE 2027',tri:'2,4M',a:"dott. Jonathan D'Eugenio (base everhard, springer kowbassen – CC BY 4.0)",u:'https://sketchfab.com/3d-models/2016-harley-davidson-fxdls-dyna-low-rider-s-ad65bcb9282a46459a9a42f787bb5cbd',brand:'hd'},
  {id:'knuckle',sep:1,n:'Harley-Davidson Knucklehead custom',y:'storica',tri:'156k',a:'habibahmmad17',u:'https://sketchfab.com/3d-models/c79b3f138ac7417491e5b7982769abcd',brand:'hd'},
  {id:'wlbobber',sep:1,n:'Harley-Davidson bobber militare',y:'storica',tri:'617k',a:'valerij1987',u:'https://sketchfab.com/3d-models/681f54f1e5f440c592b194a4d3caab28',brand:'hd'},
  {id:'chopperlok',sep:1,flip:1,n:'Harley-Davidson chopper',y:'custom',tri:'1,15M',a:'ericvento62',u:'https://sketchfab.com/3d-models/6d8910cb05be4995959aa5c880e51e05',brand:'hd'},
@@ -422,7 +424,7 @@ const MODELS=[
  {id:'xr1200x',sep:1,n:'Harley-Davidson Sportster XR1200X',y:'—',tri:'2,8M',a:'TimoShch',u:'https://sketchfab.com/3d-models/a46108178fe04beab93efb41088eedf4',brand:'hd'},
  {id:'nightrod',sep:1,flip:1,n:'Harley-Davidson V-Rod Night Rod',y:'—',tri:'27k',a:'EmanuelRestrepoVelez',u:'https://sketchfab.com/3d-models/e61fc30b0e2d4920bc2ba45127448204',brand:'hd'},
  {id:'vrod',sep:1,flip:1,n:'Harley-Davidson V-Rod',y:'2001-2017',tri:'286k',a:'szymonpasterczyk',u:'https://sketchfab.com/3d-models/9b4a7e73a18243dcacb6c7594a8821b0',brand:'hd'},
- {id:'fatboy15',sep:1,n:'Harley-Davidson Softail Fat Boy',y:'2015',tri:'1,5M',a:'niev',u:'https://sketchfab.com/3d-models/d5b19567697749eeaac3f07cee90eb70',brand:'hd'},
+ {id:'fatboy15',sep:1,n:'Harley-Davidson Softail Fat Boy',y:'2015',tri:'2,4M',a:'niev',u:'https://sketchfab.com/3d-models/d5b19567697749eeaac3f07cee90eb70',brand:'hd'},
  {id:'fatboyw',sep:1,flip:1,n:'Harley-Davidson Softail Fat Boy',y:'—',tri:'1,3M',a:'willymoral',u:'https://sketchfab.com/3d-models/26f0690a3f9c4a90a096d95913aa6971',brand:'hd'},
  {id:'police',sep:1,n:'Harley-Davidson Road King Police',y:'—',tri:'658k',a:'comrade1280',u:'https://sketchfab.com/3d-models/79dc00298bf449d7bcfdf6eb32bd15ac',brand:'hd'},
  {id:'hd_moto',sep:1,n:'Harley-Davidson Sportster custom',y:'—',tri:'51k',a:'UgurYksk',u:'https://sketchfab.com/3d-models/0d5c5971d3204e88b415643163b5516a',brand:'hd'},
@@ -461,7 +463,7 @@ const SW=[['Rosso candy','#7e0b12','candy'],['Nero vivid','#0a0a0c','gloss'],['P
 /* ---------------- renderer ---------------- */
 const view=document.getElementById('view');
 /* telefono/tablet: memoria grafica limitata (iOS chiude la pagina se la supera). Se l'avvio precedente non è arrivato in fondo, si riparte in modalità leggera */
-const VERSIONE='1.8.0';{const vf=document.getElementById('verFoot');if(vf)vf.textContent='v'+VERSIONE;}
+const VERSIONE='1.8.1';{const vf=document.getElementById('verFoot');if(vf)vf.textContent='v'+VERSIONE;}
 const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 let FAILS=0,LASTF='';try{FAILS=+(localStorage.getItem('njd_fail')||0);if(localStorage.getItem('njd_avvio')==='in_corso')FAILS++;LASTF=localStorage.getItem('njd_fase')||'';localStorage.setItem('njd_fail',String(FAILS));localStorage.setItem('njd_avvio','in_corso');}catch(e){}
 const SAFE=MOBILE&&FAILS>=1,NOAUTO=MOBILE&&FAILS>=2;
